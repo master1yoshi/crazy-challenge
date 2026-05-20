@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Host - Crazy Challenge</title>
+    <style>
+        body { background: #121212; color: white; text-align: center; font-family: sans-serif; padding: 50px; }
+        input { padding: 15px; width: 300px; border-radius: 10px; border: none; font-size: 18px; margin-bottom: 20px; }
+        button { padding: 15px 30px; background: #28a745; color: white; border: none; border-radius: 10px; cursor: pointer; font-size: 18px; margin: 10px; }
+        .btn-reset { background: #dc3545; }
+    </style>
+</head>
+<body>
+    <h1>Console de Contrôle</h1>
+    <input type="text" id="theme" placeholder="Thème (ex: Football, Maroc...)">
+    <br>
+    <button onclick="socket.emit('start_game_ai', document.getElementById('theme').value)">LANCER LE MATCH</button>
+    <br>
+    <button class="btn-reset" onclick="socket.emit('reset_teams')">🗑️ VIDER L'HISTORIQUE ÉQUIPES</button>
+    <div id="status" style="margin-top: 20px; color: #ffeb3b;"></div>
+    
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        // Connexion automatique au salon basé sur l'URL
+        const roomId = window.location.pathname.split('/')[1] || 'default';
+        socket.emit('join_room', roomId);
+
+        socket.on('status_message', msg => document.getElementById('status').innerText = msg);
+    </script>
+</body>
+</html>

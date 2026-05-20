@@ -1,0 +1,4 @@
+[
+  { "type": "Animaux", "text": "Le plus rapide au sol ?", "options": ["Lion", "Guépard", "Autruche", "Gazelle"], "answer": 1 },
+  { "type": "Tech", "text": "Langage du Web ?", "options": ["Python", "C++", "JavaScript", "Swift"], "answer": 2 }
+]
