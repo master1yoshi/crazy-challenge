@@ -7,9 +7,9 @@
     <style>
         body { font-family: sans-serif; background: #1a1a1a; color: white; text-align: center; }
         .controls { margin: 20px; padding: 20px; border: 1px solid #444; }
-        button { padding: 15px 30px; margin: 10px; cursor: pointer; font-size: 16px; }
-        .start-btn { background-color: green; color: white; border: none; }
-        .reset-btn { background-color: red; color: white; border: none; }
+        button { padding: 15px 30px; margin: 10px; cursor: pointer; font-size: 16px; border: none; border-radius: 5px; }
+        .start-btn { background-color: green; color: white; }
+        .reset-btn { background-color: red; color: white; }
         #classement { margin-top: 20px; text-align: left; display: inline-block; }
     </style>
 </head>
@@ -19,16 +19,16 @@
 
     <div class="controls">
         <h3>Choisir le thème :</h3>
-        <button onclick="changeTheme('Maroc')">Maroc</button>
-        <button onclick="changeTheme('Cuisine')">Cuisine</button>
-        <button onclick="changeTheme('Football')">Football</button>
-        <button onclick="changeTheme('Animaux')">Animaux</button>
+        <button onclick="setTheme('maroc')">Maroc</button>
+        <button onclick="setTheme('cuisine')">Cuisine</button>
+        <button onclick="setTheme('football')">Football</button>
+        <button onclick="setTheme('animaux')">Animaux</button>
         <br>
         <button class="start-btn" onclick="startGame()">COMMENCER LA PARTIE</button>
         <button class="reset-btn" onclick="resetTeams()">VIDER CLASSEMENT</button>
     </div>
 
-    <div id="statut"></div>
+    <div id="statut">Thème sélectionné : Aucun</div>
     
     <div id="classement">
         <h3>Classement en direct :</h3>
@@ -38,16 +38,17 @@
     <script>
         const socket = io();
         const roomId = window.location.pathname.split('/')[1];
+        let selectedTheme = 'maroc';
 
         socket.emit('join_room', roomId);
 
-        function changeTheme(theme) {
-            socket.emit('change_theme', theme);
+        function setTheme(theme) {
+            selectedTheme = theme;
+            document.getElementById('statut').innerText = "Thème sélectionné : " + theme.toUpperCase();
         }
 
         function startGame() {
-            // Demande le thème par défaut ou celui sélectionné
-            socket.emit('start_game_ai', 'Maroc');
+            socket.emit('start_game_ai', selectedTheme);
         }
 
         function resetTeams() {
