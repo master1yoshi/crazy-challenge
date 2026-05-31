@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crazy Challenge - Spectateur</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #1a1a1a; color: white; margin: 0; padding: 20px; text-align: center; }
+        #question-box { background: #2c2c2c; padding: 30px; border-radius: 12px; margin: 20px auto; max-width: 800px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 800px; margin: 20px auto; }
+        .option { background: #3a3a3a; padding: 25px; font-size: 22px; border-radius: 8px; font-weight: bold; }
+        #teams-list { display: flex; justify-content: center; gap: 30px; margin-top: 40px; font-size: 20px; }
+        .team-card { background: #007bff; padding: 15px 30px; border-radius: 8px; }
+        #anim { font-size: 30px; font-weight: bold; margin: 20px; height: 40px; color: #ffc107; }
+    </style>
+</head>
+<body>
+
+    <h1 id="category-title">ATTENTE DU SOUFFLE DE L'IA...</h1>
+    
+    <div id="question-box">
+        <h2 id="question-text">Le Match va bientôt commencer. Inscrivez vos équipes !</h2>
+    </div>
+
+    <div class="grid">
+        <div class="option" id="btn-option-a">A : Choix A</div>
+        <div class="option" id="btn-option-b">B : Choix B</div>
+        <div class="option" id="btn-option-c">C : Choix C</div>
+        <div class="option" id="btn-option-d">D : Choix D</div>
+    </div>
+
+    <div id="anim"></div>
+
+    <h2>CLASSEMENT LIVE</h2>
+    <div id="teams-list"></div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const roomId = window.location.pathname.split('/')[1];
+
+        socket.emit('join_room', roomId);
+
+        socket.on('update_teams', (teams) => {
+            const container = document.getElementById('teams-list');
+            container.innerHTML = '';
+            Object.values(teams).forEach(team => {
+                container.innerHTML += `<div class="team-card"><strong>${team.name}</strong><br>${team.score} Pts</div>`;
+            });
+        });
+
+        socket.on('new_question_intro', (data) => {
+            document.getElementById('category-title').innerText = "CATÉGORIE : " + data.type.toUpperCase();
+            document.getElementById('question-text').innerText = data.text;
+            document.getElementById('anim').innerText = "Soyez prêt à buzzer...";
+            // Masque temporairement les choix pendant l'intro
+            document.getElementById('btn-option-a').innerText = "A";
+            document.getElementById('btn-option-b').innerText = "B";
+            document.getElementById('btn-option-c').innerText = "C";
+            document.getElementById('btn-option-d').innerText = "D";
+        });
+
+        socket.on('show_options', (data) => {
+            document.getElementById('anim').innerText = "BUZZER ACTIF !";
+            document.getElementById('btn-option-a').innerText = "A : " + data.options[0];
+            document.getElementById('btn-option-b').innerText = "B : " + data.options[1];
+            document.getElementById('btn-option-c').innerText = "C : " + data.options[2];
+            document.getElementById('btn-option-d').innerText = "D : " + data.options[3];
+        });
+
+        socket.on('lock_buzz', (data) => {
+            document.getElementById('anim').innerText = "🛑 BUZZ de " + data.name + " !";
+        });
+
+        socket.on('result_animation', (data) => {
+            if(data.status === 'correct') {
+                document.getElementById('anim').innerHTML = `<span style="color: #28a745;">✅ Bonne réponse de ${data.team} ! (+10)</span>`;
+            } else {
+                document.getElementById('anim').innerHTML = `<span style="color: #dc3545;">❌ Mauvaise réponse de ${data.team} ! (-5)</span>`;
+            }
+        });
+
+        socket.on('game_over', (teams) => {
+            document.getElementById('question-box').innerHTML = "<h1>🏆 FIN DU MATCH ! 🏆</h1>";
+            document.getElementById('anim').innerText = "Le tournoi est terminé !";
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crazy Challenge - Host Panel</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #121212; color: white; text-align: center; padding: 50px 20px; }
+        .btn { padding: 15px 30px; font-size: 18px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin: 10px; }
+        input { padding: 15px; font-size: 18px; border-radius: 8px; border: none; width: 80%; max-width: 400px; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+
+    <h1>Console de Contrôle</h1>
+    <input type="text" id="theme-input" placeholder="Entrez un thème (ex: Maroc, Football...)"><br>
+    
+    <button class="btn" style="background: #28a745; color: white;" onclick="launchAI()">LANCER LE MATCH</button>
+    <button class="btn" style="background: #dc3545; color: white;" onclick="resetTeams()">🗑️ VIDER LES ÉQUIPES</button>
+
+    <h3 id="status-msg" style="color: #ffc107; margin-top: 30px;"></h3>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const roomId = window.location.pathname.split('/')[1];
+
+        socket.emit('join_room', roomId);
+
+        function launchAI() {
+            const theme = document.getElementById('theme-input').value;
+            if(!theme) return alert("Veuillez saisir un thème !");
+            document.getElementById('status-msg').innerText = "L'IA génère les questions...";
+            socket.emit('start_game_ai', theme);
+        }
+
+        function resetTeams() {
+            if(confirm("Voulez-vous vraiment déconnecter et vider toutes les équipes de ce campus ?")) {
+                socket.emit('reset_teams');
+                document.getElementById('status-msg').innerText = "Historique d'équipes vidé.";
+            }
+        }
+
+        socket.on('status_message', (msg) => {
+            document.getElementById('status-msg').innerText = msg;
+        });
+
+        socket.on('new_question_intro', () => {
+            document.getElementById('status-msg').innerText = "Match lancé avec succès ! Les questions s'enchaînent.";
+        });
+    </script>
+</body>
+</html>

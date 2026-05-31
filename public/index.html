@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crazy Challenge - Joueur</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #121212; color: white; text-align: center; padding: 20px; }
+        .btn { display: block; width: 100%; max-width: 300px; margin: 15px auto; padding: 15px; font-size: 18px; border: none; border-radius: 8px; cursor: pointer; background: #333; color: white; }
+        #buzz-btn { background: #e50914; font-size: 24px; padding: 30px; border-radius: 50px; width: 150px; height: 150px; margin: 30px auto; display: none; }
+        #setup { margin-top: 50px; }
+        #game { display: none; }
+        input { padding: 10px; font-size: 16px; border-radius: 5px; border: none; width: 80%; max-width: 280px; }
+    </style>
+</head>
+<body>
+
+    <div id="setup">
+        <h2>Rejoindre la partie</h2>
+        <input type="text" id="team-name" placeholder="Nom de ton équipe..."><br><br>
+        <button class="btn" style="background: #28a745;" onclick="joinGame()">REJOINDRE</button>
+    </div>
+
+    <div id="game">
+        <h2 id="status-wait">Attente du lancement...</h2>
+        <button id="buzz-btn" onclick="buzz()">BUZZ</button>
+        
+        <div id="options-container" style="display: none;">
+            <button class="btn" id="btn-a" onclick="sendAnswer(0)">A : Choix A</button>
+            <button class="btn" id="btn-b" onclick="sendAnswer(1)">B : Choix B</button>
+            <button class="btn" id="btn-c" onclick="sendAnswer(2)">C : Choix C</button>
+            <button class="btn" id="btn-d" onclick="sendAnswer(3)">D : Choix D</button>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const roomId = window.location.pathname.split('/')[1];
+
+        socket.emit('join_room', roomId);
+
+        function joinGame() {
+            const name = document.getElementById('team-name').value;
+            if(!name) return alert("Choisis un nom !");
+            socket.emit('join_team', name);
+            document.getElementById('setup').style.display = 'none';
+            document.getElementById('game').style.display = 'block';
+        }
+
+        function buzz() {
+            socket.emit('buzz');
+        }
+
+        function sendAnswer(index) {
+            socket.emit('submit_answer', index);
+            document.getElementById('options-container').style.display = 'none';
+        }
+
+        socket.on('new_question_intro', (data) => {
+            document.getElementById('status-wait').innerText = "Question en cours...";
+            document.getElementById('buzz-btn').style.display = 'block';
+            document.getElementById('options-container').style.display = 'none';
+        });
+
+        socket.on('show_options', (data) => {
+            document.getElementById('btn-a').innerText = "A : " + data.options[0];
+            document.getElementById('btn-b').innerText = "B : " + data.options[1];
+            document.getElementById('btn-c').innerText = "C : " + data.options[2];
+            document.getElementById('btn-d').innerText = "D : " + data.options[3];
+        });
+
+        socket.on('lock_buzz', (data) => {
+            document.getElementById('buzz-btn').style.display = 'none';
+            if(data.id === socket.id) {
+                document.getElementById('options-container').style.display = 'block';
+                document.getElementById('status-wait').innerText = "À toi de répondre !";
+            } else {
+                document.getElementById('status-wait').innerText = data.name + " répond...";
+            }
+        });
+
+        socket.on('release_buzz', (data) => {
+            if(!data.buzzedThisRound.includes(socket.id)) {
+                document.getElementById('buzz-btn').style.display = 'block';
+            }
+            document.getElementById('status-wait').innerText = "Buzzer débloqué !";
+            document.getElementById('options-container').style.display = 'none';
+        });
+
+        socket.on('game_over', () => {
+            document.getElementById('game').innerHTML = "<h2>Match terminé ! Regarde le grand écran !</h2>";
+        });
+    </script>
+</body>
+</html>
