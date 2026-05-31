@@ -2,18 +2,75 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Host Panel</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crazy Challenge - Host Panel</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #121212; color: white; padding: 20px; }
+        .controls { text-align: center; background: #1f1f1f; padding: 20px; border-radius: 12px; margin-bottom: 20px; }
+        .btn { padding: 15px 30px; font-size: 18px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin: 5px; }
+        #game-dashboard { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+        .dashboard-box { background: #1f1f1f; padding: 20px; border-radius: 12px; }
+        .score-row { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #333; }
+    </style>
 </head>
-<body style="background:#111; color:white; padding:50px;">
-    <h1>Console Admin</h1>
-    <input id="theme" placeholder="Thème"><button onclick="socket.emit('start_game_ai', document.getElementById('theme').value)">LANCER</button>
-    <div id="admin-info" style="margin-top:30px;"></div>
+<body>
+
+    <div class="controls">
+        <h1>Console Admin</h1>
+        <input type="text" id="theme-input" placeholder="Thème (ex: Maroc, Football...)" style="padding:15px; width:300px; border-radius:8px;">
+        <button class="btn" style="background: #28a745; color: white;" onclick="launchAI()">LANCER</button>
+        <button class="btn" style="background: #dc3545; color: white;" onclick="resetTeams()">VIDER</button>
+    </div>
+
+    <div id="game-dashboard">
+        <div class="dashboard-box">
+            <h2 id="q-title">En attente...</h2>
+            <p id="q-text" style="font-size: 20px;"></p>
+            <div id="q-options" style="color: #ffcc00; font-weight: bold;"></div>
+        </div>
+        <div class="dashboard-box">
+            <h3>Classement en direct</h3>
+            <div id="teams-list"></div>
+        </div>
+    </div>
+
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
-        socket.emit('join_room', window.location.pathname.split('/')[1]);
-        socket.on('new_question', (d) => {
-            document.getElementById('admin-info').innerHTML = `<h3>${d.question}</h3><p>Scores : ${Object.values(d.teams).map(x => x.name + ': ' + x.score).join(', ')}</p>`;
+        const roomId = window.location.pathname.split('/')[1];
+        socket.emit('join_room', roomId);
+
+        function launchAI() {
+            const theme = document.getElementById('theme-input').value;
+            if(!theme) return alert("Saisis un thème !");
+            socket.emit('start_game_ai', theme);
+        }
+
+        function resetTeams() {
+            if(confirm("Tout effacer ?")) socket.emit('reset_teams');
+        }
+
+        // Écoute de l'état global
+        socket.on('game_state_update', (d) => {
+            document.getElementById('q-title').innerText = "Catégorie : " + d.type;
+            document.getElementById('q-text').innerText = d.question;
+            document.getElementById('q-options').innerHTML = d.options.map((o,i) => `<div>${String.fromCharCode(65+i)} : ${o}</div>`).join('');
+            renderTeams(d.teams);
+        });
+
+        socket.on('update_teams', (t) => renderTeams(t));
+
+        function renderTeams(t) {
+            const list = document.getElementById('teams-list');
+            list.innerHTML = Object.values(t)
+                .sort((a,b) => b.score - a.score)
+                .map(x => `<div class="score-row"><span>${x.name}</span><span>${x.score} pts</span></div>`)
+                .join('');
+        }
+
+        // Notification de buzz
+        socket.on('lock_buzz', (d) => {
+            alert("BUZZ : " + d.name);
         });
     </script>
 </body>

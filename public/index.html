@@ -2,25 +2,108 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Joueur</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crazy Challenge - Joueur</title>
     <style>
-        body { background: #121212; color: white; text-align: center; padding: 20px; font-family: sans-serif; }
-        .btn { display: block; width: 100%; padding: 20px; margin: 10px 0; background: #333; border: none; color: white; border-radius: 10px; font-size: 20px; }
+        body { font-family: Arial, sans-serif; background: #121212; color: white; text-align: center; padding: 20px; }
+        .header { display: flex; justify-content: space-between; padding: 10px; background: #1f1f1f; border-radius: 8px; margin-bottom: 20px; }
+        .btn { display: block; width: 100%; max-width: 300px; margin: 15px auto; padding: 15px; font-size: 18px; border: none; border-radius: 8px; cursor: pointer; background: #333; color: white; transition: 0.3s; }
+        .btn:active { transform: scale(0.95); }
+        #buzz-btn { background: #e50914; font-size: 24px; padding: 30px; border-radius: 50%; width: 150px; height: 150px; margin: 30px auto; display: none; border: none; color: white; font-weight: bold; }
+        #game { display: none; }
+        #question-display { font-size: 18px; margin: 20px 0; color: #ffcc00; }
     </style>
 </head>
 <body>
-    <div id="setup"><input id="name" placeholder="Nom équipe"><button onclick="join()">REJOINDRE</button></div>
-    <div id="game" style="display:none;">
-        <h2 id="score-display">Score: 0</h2>
-        <button id="buzz" onclick="socket.emit('buzz')" style="width:150px; height:150px; border-radius:50%; background:red; border:none; font-size:25px;">BUZZ</button>
-        <div id="opts"></div>
+
+    <div id="setup">
+        <h2>Rejoindre la partie</h2>
+        <input type="text" id="team-name" placeholder="Nom de ton équipe..." style="padding:10px; border-radius:5px; width:250px;"><br><br>
+        <button class="btn" style="background: #28a745;" onclick="joinGame()">REJOINDRE</button>
     </div>
+
+    <div id="game">
+        <div class="header">
+            <span id="display-name">Équipe</span>
+            <span id="display-score">Score: 0</span>
+        </div>
+        
+        <div id="question-display">En attente du lancement...</div>
+        
+        <button id="buzz-btn" onclick="buzz()">BUZZ</button>
+        
+        <div id="options-container" style="display: none;">
+            <button class="btn" id="btn-a" onclick="sendAnswer(0)">A</button>
+            <button class="btn" id="btn-b" onclick="sendAnswer(1)">B</button>
+            <button class="btn" id="btn-c" onclick="sendAnswer(2)">C</button>
+            <button class="btn" id="btn-d" onclick="sendAnswer(3)">D</button>
+        </div>
+    </div>
+
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
-        function join() { socket.emit('join_team', document.getElementById('name').value); document.getElementById('setup').style.display='none'; document.getElementById('game').style.display='block'; }
-        socket.on('new_question', (d) => { document.getElementById('opts').innerHTML = d.options.map((o,i) => `<button class="btn" onclick="socket.emit('submit_answer', ${i})">${o}</button>`).join(''); });
-        socket.on('update_teams', (t) => { const my = t[socket.id]; if(my) document.getElementById('score-display').innerText = "Score: " + my.score; });
+        const roomId = window.location.pathname.split('/')[1];
+        let myTeamName = "";
+
+        socket.emit('join_room', roomId);
+
+        function joinGame() {
+            myTeamName = document.getElementById('team-name').value;
+            if(!myTeamName) return alert("Choisis un nom !");
+            socket.emit('join_team', myTeamName);
+            document.getElementById('display-name').innerText = myTeamName;
+            document.getElementById('setup').style.display = 'none';
+            document.getElementById('game').style.display = 'block';
+        }
+
+        function buzz() { socket.emit('buzz'); }
+
+        function sendAnswer(index) {
+            socket.emit('submit_answer', index);
+            document.getElementById('options-container').style.display = 'none';
+        }
+
+        // Écoute de l'état global du jeu (Question + Score)
+        socket.on('game_state_update', (d) => {
+            document.getElementById('question-display').innerText = d.question;
+            // Met à jour le score si l'équipe est présente
+            if(d.teams[socket.id]) {
+                document.getElementById('display-score').innerText = "Score: " + d.teams[socket.id].score;
+            }
+        });
+
+        // Mise à jour spécifique des scores
+        socket.on('update_teams', (t) => {
+            if(t[socket.id]) {
+                document.getElementById('display-score').innerText = "Score: " + t[socket.id].score;
+            }
+        });
+
+        socket.on('new_question_intro', () => {
+            document.getElementById('buzz-btn').style.display = 'block';
+            document.getElementById('options-container').style.display = 'none';
+        });
+
+        socket.on('show_options', (data) => {
+            document.getElementById('btn-a').innerText = "A : " + data.options[0];
+            document.getElementById('btn-b').innerText = "B : " + data.options[1];
+            document.getElementById('btn-c').innerText = "C : " + data.options[2];
+            document.getElementById('btn-d').innerText = "D : " + data.options[3];
+        });
+
+        socket.on('lock_buzz', (data) => {
+            document.getElementById('buzz-btn').style.display = 'none';
+            if(data.id === socket.id) {
+                document.getElementById('options-container').style.display = 'block';
+            }
+        });
+
+        socket.on('release_buzz', (data) => {
+            if(!data.buzzedThisRound.includes(socket.id)) {
+                document.getElementById('buzz-btn').style.display = 'block';
+            }
+        });
     </script>
 </body>
 </html>
