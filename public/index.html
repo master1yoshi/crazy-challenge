@@ -9,10 +9,9 @@
         .header { display: flex; justify-content: space-between; padding: 10px; background: #1f1f1f; border-radius: 8px; margin-bottom: 20px; }
         .btn { display: block; width: 100%; max-width: 300px; margin: 15px auto; padding: 15px; font-size: 18px; border: none; border-radius: 8px; cursor: pointer; background: #333; color: white; transition: 0.3s; }
         .btn:active { transform: scale(0.95); }
-        #buzz-btn { background: #e50914; font-size: 24px; padding: 30px; border-radius: 50%; width: 150px; height: 150px; margin: 30px auto; display: none; border: none; color: white; font-weight: bold; }
+        #buzz-btn { background: #e50914; font-size: 24px; padding: 30px; border-radius: 50%; width: 150px; height: 150px; margin: 30px auto; display: none; border: none; color: white; font-weight: bold; cursor: pointer; }
         #game { display: none; }
-        #question-display { font-size: 18px; margin: 20px 0; color: #ffcc00; }
-        /* Bouton pour débloquer l'audio */
+        #question-display { font-size: 20px; margin: 20px 0; color: #ffcc00; font-weight: bold; }
         #audio-unlock { background: #007bff; padding: 10px 20px; border-radius: 5px; border: none; color: white; cursor: pointer; margin-bottom: 10px; }
     </style>
 </head>
@@ -21,7 +20,7 @@
     <button id="audio-unlock" onclick="unlockAudio()">ACTIVER LE SON</button>
 
     <div id="setup">
-        <h2>Rejoindre la partie</h2>
+        <h2>Bienvenue achraf !</h2>
         <input type="text" id="team-name" placeholder="Nom de ton équipe..." style="padding:10px; border-radius:5px; width:250px;"><br><br>
         <button class="btn" style="background: #28a745;" onclick="joinGame()">REJOINDRE</button>
     </div>
@@ -58,7 +57,6 @@
         socket.emit('join_room', roomId);
 
         function unlockAudio() {
-            // Joue et met en pause pour "débloquer" les autorisations du navigateur
             document.getElementById('start_game').play().then(() => {
                 document.getElementById('start_game').pause();
                 document.getElementById('audio-unlock').style.display = 'none';
@@ -81,25 +79,19 @@
             document.getElementById('options-container').style.display = 'none';
         }
 
-        // --- GESTION DES SONS ---
         socket.on('play_sound', (data) => {
             document.querySelectorAll('audio').forEach(a => { a.pause(); a.currentTime = 0; });
             const s = document.getElementById(data.track);
             if(s) s.play().catch(e => console.log("Son bloqué"));
         });
 
-        // --- LOGIQUE DE JEU ---
         socket.on('game_state_update', (d) => {
             document.getElementById('question-display').innerText = d.question;
-            if(d.teams[socket.id]) {
-                document.getElementById('display-score').innerText = "Score: " + d.teams[socket.id].score;
-            }
+            if(d.teams[socket.id]) document.getElementById('display-score').innerText = "Score: " + d.teams[socket.id].score;
         });
 
         socket.on('update_teams', (t) => {
-            if(t[socket.id]) {
-                document.getElementById('display-score').innerText = "Score: " + t[socket.id].score;
-            }
+            if(t[socket.id]) document.getElementById('display-score').innerText = "Score: " + t[socket.id].score;
         });
 
         socket.on('new_question_intro', (data) => {

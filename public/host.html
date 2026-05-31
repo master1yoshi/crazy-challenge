@@ -2,76 +2,71 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crazy Challenge - Host Panel</title>
+    <title>Console Admin - Crazy Challenge</title>
+    <script src="/socket.io/socket.io.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; background: #121212; color: white; padding: 20px; }
-        .controls { text-align: center; background: #1f1f1f; padding: 20px; border-radius: 12px; margin-bottom: 20px; }
-        .btn { padding: 15px 30px; font-size: 18px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin: 5px; }
-        #game-dashboard { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
-        .dashboard-box { background: #1f1f1f; padding: 20px; border-radius: 12px; }
-        .score-row { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #333; }
-        #theme-controls { margin-top: 20px; padding: 15px; border: 1px solid #444; border-radius: 8px; }
+        body { font-family: sans-serif; background: #1a1a1a; color: white; text-align: center; }
+        .controls { margin: 20px; padding: 20px; border: 1px solid #444; }
+        button { padding: 15px 30px; margin: 10px; cursor: pointer; font-size: 16px; }
+        .start-btn { background-color: green; color: white; border: none; }
+        .reset-btn { background-color: red; color: white; border: none; }
+        #classement { margin-top: 20px; text-align: left; display: inline-block; }
     </style>
 </head>
 <body>
 
+    <h1>Console Admin</h1>
+
     <div class="controls">
-        <h1>Console Admin</h1>
-        
-        <!-- Bloc Thèmes -->
-        <div id="theme-controls">
-            <h3>Choisir le thème :</h3>
-            <button class="btn" style="background: #007bff;" onclick="socket.emit('change_theme', 'maroc')">Maroc</button>
-            <button class="btn" style="background: #007bff;" onclick="socket.emit('change_theme', 'cuisine')">Cuisine</button>
-            <button class="btn" style="background: #007bff;" onclick="socket.emit('change_theme', 'football')">Football</button>
-            <button class="btn" style="background: #007bff;" onclick="socket.emit('change_theme', 'animaux')">Animaux</button>
-        </div>
-
-        <button class="btn" style="background: #dc3545; margin-top:20px;" onclick="resetTeams()">VIDER CLASSEMENT</button>
+        <h3>Choisir le thème :</h3>
+        <button onclick="changeTheme('Maroc')">Maroc</button>
+        <button onclick="changeTheme('Cuisine')">Cuisine</button>
+        <button onclick="changeTheme('Football')">Football</button>
+        <button onclick="changeTheme('Animaux')">Animaux</button>
+        <br>
+        <button class="start-btn" onclick="startGame()">COMMENCER LA PARTIE</button>
+        <button class="reset-btn" onclick="resetTeams()">VIDER CLASSEMENT</button>
     </div>
 
-    <div id="game-dashboard">
-        <div class="dashboard-box">
-            <h2 id="q-title">En attente...</h2>
-            <p id="q-text" style="font-size: 20px;"></p>
-            <div id="q-options" style="color: #ffcc00; font-weight: bold;"></div>
-        </div>
-        <div class="dashboard-box">
-            <h3>Classement en direct</h3>
-            <div id="teams-list"></div>
-        </div>
+    <div id="statut"></div>
+    
+    <div id="classement">
+        <h3>Classement en direct :</h3>
+        <ul id="teams-list"></ul>
     </div>
 
-    <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
         const roomId = window.location.pathname.split('/')[1];
+
         socket.emit('join_room', roomId);
 
-        function resetTeams() {
-            if(confirm("Tout effacer ?")) socket.emit('reset_teams');
+        function changeTheme(theme) {
+            socket.emit('change_theme', theme);
         }
 
-        socket.on('game_state_update', (d) => {
-            document.getElementById('q-title').innerText = "Catégorie : " + d.type;
-            document.getElementById('q-text').innerText = d.question;
-            document.getElementById('q-options').innerHTML = d.options.map((o,i) => `<div>${String.fromCharCode(65+i)} : ${o}</div>`).join('');
-            renderTeams(d.teams);
+        function startGame() {
+            // Demande le thème par défaut ou celui sélectionné
+            socket.emit('start_game_ai', 'Maroc');
+        }
+
+        function resetTeams() {
+            socket.emit('reset_teams');
+        }
+
+        socket.on('update_teams', (teams) => {
+            const list = document.getElementById('teams-list');
+            list.innerHTML = '';
+            for (let id in teams) {
+                let li = document.createElement('li');
+                li.innerText = `${teams[id].name} : ${teams[id].score} pts`;
+                list.appendChild(li);
+            }
         });
 
-        socket.on('update_teams', (t) => renderTeams(t));
-
-        function renderTeams(t) {
-            const list = document.getElementById('teams-list');
-            list.innerHTML = Object.values(t)
-                .sort((a,b) => b.score - a.score)
-                .map(x => `<div class="score-row"><span>${x.name}</span><span>${x.score} pts</span></div>`)
-                .join('');
-        }
-
-        socket.on('status_message', (msg) => alert(msg));
-        socket.on('lock_buzz', (d) => alert("BUZZ : " + d.name));
+        socket.on('status_message', (msg) => {
+            document.getElementById('statut').innerText = msg;
+        });
     </script>
 </body>
 </html>
