@@ -11,15 +11,24 @@
         #game-dashboard { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
         .dashboard-box { background: #1f1f1f; padding: 20px; border-radius: 12px; }
         .score-row { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #333; }
+        #theme-controls { margin-top: 20px; padding: 15px; border: 1px solid #444; border-radius: 8px; }
     </style>
 </head>
 <body>
 
     <div class="controls">
         <h1>Console Admin</h1>
-        <input type="text" id="theme-input" placeholder="Thème (ex: Maroc, Football...)" style="padding:15px; width:300px; border-radius:8px;">
-        <button class="btn" style="background: #28a745; color: white;" onclick="launchAI()">LANCER</button>
-        <button class="btn" style="background: #dc3545; color: white;" onclick="resetTeams()">VIDER</button>
+        
+        <!-- Bloc Thèmes -->
+        <div id="theme-controls">
+            <h3>Choisir le thème :</h3>
+            <button class="btn" style="background: #007bff;" onclick="socket.emit('change_theme', 'maroc')">Maroc</button>
+            <button class="btn" style="background: #007bff;" onclick="socket.emit('change_theme', 'cuisine')">Cuisine</button>
+            <button class="btn" style="background: #007bff;" onclick="socket.emit('change_theme', 'football')">Football</button>
+            <button class="btn" style="background: #007bff;" onclick="socket.emit('change_theme', 'animaux')">Animaux</button>
+        </div>
+
+        <button class="btn" style="background: #dc3545; margin-top:20px;" onclick="resetTeams()">VIDER CLASSEMENT</button>
     </div>
 
     <div id="game-dashboard">
@@ -40,17 +49,10 @@
         const roomId = window.location.pathname.split('/')[1];
         socket.emit('join_room', roomId);
 
-        function launchAI() {
-            const theme = document.getElementById('theme-input').value;
-            if(!theme) return alert("Saisis un thème !");
-            socket.emit('start_game_ai', theme);
-        }
-
         function resetTeams() {
             if(confirm("Tout effacer ?")) socket.emit('reset_teams');
         }
 
-        // Écoute de l'état global
         socket.on('game_state_update', (d) => {
             document.getElementById('q-title').innerText = "Catégorie : " + d.type;
             document.getElementById('q-text').innerText = d.question;
@@ -68,10 +70,8 @@
                 .join('');
         }
 
-        // Notification de buzz
-        socket.on('lock_buzz', (d) => {
-            alert("BUZZ : " + d.name);
-        });
+        socket.on('status_message', (msg) => alert(msg));
+        socket.on('lock_buzz', (d) => alert("BUZZ : " + d.name));
     </script>
 </body>
 </html>
