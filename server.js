@@ -13,20 +13,16 @@ const io = new Server(server, {
 
 app.use(express.json());
 
-// Distribue correctement les modules clients de Socket.io
 app.use('/socket.io', express.static(path.join(__dirname, 'node_modules/socket.io/client-dist')));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// 1. CONNEXION BASE DE DONNÉES (Configuration validée pour Aiven)
 const db = mysql.createConnection({
     host: process.env.DB_HOST,
     port: parseInt(process.env.DB_PORT) || 13187,
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_DATABASE,
-    ssl: {
-        rejectUnauthorized: false
-    }
+    ssl: { rejectUnauthorized: false }
 });
 
 db.connect((err) => {
@@ -44,11 +40,9 @@ db.connect((err) => {
     });
 });
 
-// 2. CONFIGURATION DE L'IA GEMINI
 const GEMINI_KEY = process.env.GEMINI_API_KEY; 
 const genAI = new GoogleGenerativeAI(GEMINI_KEY || "NO_KEY");
 
-// 3. LOGIQUE ET STOCKAGE DES SALONS MULTI-CAMPUS
 let rooms = {}; 
 
 function getOrCreateRoom(roomId) {
@@ -65,7 +59,6 @@ function getOrCreateRoom(roomId) {
     return rooms[roomId];
 }
 
-// GENERATEUR DE 10 QUESTIONS EN JSON NATIF
 async function generateQuestionsWithAI(theme) {
     if (!GEMINI_KEY || GEMINI_KEY === "") {
         console.log("No API Key detected, using fallback questions.");
@@ -112,9 +105,8 @@ function getFallbackQuestions(theme) {
     return fallbackQuestions;
 }
 
-// 4. ROUTAGE DES PAGES
 app.get('/', (req, res) => {
-    res.send("<h1 style='text-align:center; font-family:sans-serif; margin-top:50px;'>Bienvenue sur Crazy Challenge ! Veuillez utiliser un lien avec votre campus (ex: /rabat ou /casa) pour jouer.</h1>");
+    res.send("<h1 style='text-align:center; font-family:sans-serif; margin-top:50px;'>Bienvenue sur Crazy Challenge !</h1>");
 });
 
 app.get('/:roomId', (req, res) => {
@@ -129,7 +121,6 @@ app.get('/:roomId/host-secure-dashboard', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'host.html'));
 });
 
-// 5. GESTION DES WEBSOCKETS MULTI-CAMPUS
 io.on('connection', (socket) => {
     let currentRoomId = null;
 
@@ -159,12 +150,15 @@ io.on('connection', (socket) => {
         if (!currentRoomId) return;
         const room = getOrCreateRoom(currentRoomId);
 
+        // --- AUDIO 1 : Lancement au démarrage (20s avant la 1ère question) ---
+        io.to(currentRoomId).emit('play_sound', { track: 'start_game' });
+
         io.to(currentRoomId).emit('status_message', "L'IA génère les questions...");
         room.gameQuestions = await generateQuestionsWithAI(theme);
         
         if (room.gameQuestions && room.gameQuestions.length > 0) { 
             room.currentQuestionIndex = 0; 
-            sendQuestion(currentRoomId); 
+            setTimeout(() => sendQuestion(currentRoomId), 20000); 
         }
     });
 
@@ -188,7 +182,7 @@ io.on('connection', (socket) => {
         
         if (choiceIndex === q.answer) {
             room.teams[socket.id].score += 10;
-            io.to(currentRoomId).emit('result_animation', { status: 'correct', team: room.teams[socket.id].name, correctIndex: q.answer });
+            io.to(currentRoomId).emit('result_animation', { status: 'correct', team: room.teams[socket.id].name });
             setTimeout(() => nextQuestion(currentRoomId), 2000);
         } else {
             room.teams[socket.id].score -= 5;
@@ -221,24 +215,17 @@ function sendQuestion(roomId) {
     room.canBuzz = false;
     const q = room.gameQuestions[room.currentQuestionIndex];
     
-    // Ajout de l'état complet pour les écrans
-    const gameState = {
-        question: q.text,
-        options: q.options,
-        type: q.type,
-        current: room.currentQuestionIndex + 1,
-        total: room.gameQuestions.length,
-        teams: room.teams,
-        correctAnswer: q.answer // Ajout pour l'hôte
-    };
-
+    // --- AUDIO 2 : Juste avant d'afficher la question (5s avant buzzer) ---
+    io.to(roomId).emit('play_sound', { track: 'pre_question' });
+    
     io.to(roomId).emit('new_question_intro', { type: q.type, text: q.text });
-    io.to(roomId).emit('game_state_update', gameState); // Nouvel envoi global
     
     setTimeout(() => { 
         room.canBuzz = true; 
+        // --- AUDIO 3 : Timer 30s de réponse ---
+        io.to(roomId).emit('play_sound', { track: 'question_timer' });
         io.to(roomId).emit('show_options', { options: q.options }); 
-    }, 3000);
+    }, 5000); 
 }
 
 function nextQuestion(roomId) {

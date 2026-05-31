@@ -12,9 +12,13 @@
         #buzz-btn { background: #e50914; font-size: 24px; padding: 30px; border-radius: 50%; width: 150px; height: 150px; margin: 30px auto; display: none; border: none; color: white; font-weight: bold; }
         #game { display: none; }
         #question-display { font-size: 18px; margin: 20px 0; color: #ffcc00; }
+        /* Bouton pour débloquer l'audio */
+        #audio-unlock { background: #007bff; padding: 10px 20px; border-radius: 5px; border: none; color: white; cursor: pointer; margin-bottom: 10px; }
     </style>
 </head>
 <body>
+
+    <button id="audio-unlock" onclick="unlockAudio()">ACTIVER LE SON</button>
 
     <div id="setup">
         <h2>Rejoindre la partie</h2>
@@ -40,6 +44,10 @@
         </div>
     </div>
 
+    <audio id="start_game" src="/start_game.mp3"></audio>
+    <audio id="pre_question" src="/pre_question.mp3"></audio>
+    <audio id="question_timer" src="/question_timer.mp3"></audio>
+
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
@@ -47,6 +55,14 @@
         let myTeamName = "";
 
         socket.emit('join_room', roomId);
+
+        function unlockAudio() {
+            // Joue et met en pause pour "débloquer" les autorisations du navigateur
+            document.getElementById('start_game').play().then(() => {
+                document.getElementById('start_game').pause();
+                document.getElementById('audio-unlock').style.display = 'none';
+            });
+        }
 
         function joinGame() {
             myTeamName = document.getElementById('team-name').value;
@@ -64,23 +80,29 @@
             document.getElementById('options-container').style.display = 'none';
         }
 
-        // Écoute de l'état global du jeu (Question + Score)
+        // --- GESTION DES SONS ---
+        socket.on('play_sound', (data) => {
+            document.querySelectorAll('audio').forEach(a => { a.pause(); a.currentTime = 0; });
+            const s = document.getElementById(data.track);
+            if(s) s.play().catch(e => console.log("Son bloqué"));
+        });
+
+        // --- LOGIQUE DE JEU ---
         socket.on('game_state_update', (d) => {
             document.getElementById('question-display').innerText = d.question;
-            // Met à jour le score si l'équipe est présente
             if(d.teams[socket.id]) {
                 document.getElementById('display-score').innerText = "Score: " + d.teams[socket.id].score;
             }
         });
 
-        // Mise à jour spécifique des scores
         socket.on('update_teams', (t) => {
             if(t[socket.id]) {
                 document.getElementById('display-score').innerText = "Score: " + t[socket.id].score;
             }
         });
 
-        socket.on('new_question_intro', () => {
+        socket.on('new_question_intro', (data) => {
+            document.getElementById('question-display').innerText = data.text;
             document.getElementById('buzz-btn').style.display = 'block';
             document.getElementById('options-container').style.display = 'none';
         });
@@ -96,12 +118,6 @@
             document.getElementById('buzz-btn').style.display = 'none';
             if(data.id === socket.id) {
                 document.getElementById('options-container').style.display = 'block';
-            }
-        });
-
-        socket.on('release_buzz', (data) => {
-            if(!data.buzzedThisRound.includes(socket.id)) {
-                document.getElementById('buzz-btn').style.display = 'block';
             }
         });
     </script>

@@ -8,18 +8,19 @@
         body { font-family: Arial, sans-serif; background: #1a1a1a; color: white; margin: 0; display: flex; height: 100vh; overflow: hidden; }
         #main-content { flex: 4; padding: 20px; text-align: center; display: flex; flex-direction: column; justify-content: center; }
         #sidebar { flex: 1; background: #222; border-left: 2px solid #444; padding: 20px; display: flex; flex-direction: column; }
-        
         #question-box { background: #2c2c2c; padding: 30px; border-radius: 12px; margin: 20px auto; max-width: 800px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 800px; margin: 20px auto; }
         .option { background: #3a3a3a; padding: 25px; font-size: 20px; border-radius: 8px; font-weight: bold; }
-        
         .team-card { background: #007bff; padding: 15px; border-radius: 8px; margin-bottom: 15px; font-size: 20px; }
         #anim { font-size: 30px; font-weight: bold; margin: 20px; height: 50px; color: #ffc107; }
+        /* Bouton pour débloquer l'audio */
+        #audio-unlock { background: #ffc107; color: black; padding: 10px; border: none; cursor: pointer; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <div id="main-content">
+        <button id="audio-unlock" onclick="unlockAudio()">ACTIVER LE SON</button>
         <h1 id="category-title">EN ATTENTE DU LANCEMENT...</h1>
         <div id="question-box">
             <h2 id="question-text">Le Match va bientôt commencer.</h2>
@@ -38,11 +39,29 @@
         <div id="teams-list"></div>
     </div>
 
+    <audio id="start_game" src="/start_game.mp3"></audio>
+    <audio id="pre_question" src="/pre_question.mp3"></audio>
+    <audio id="question_timer" src="/question_timer.mp3"></audio>
+
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
         const roomId = window.location.pathname.split('/')[1];
         socket.emit('join_room', roomId);
+
+        function unlockAudio() {
+            document.getElementById('start_game').play().then(() => {
+                document.getElementById('start_game').pause();
+                document.getElementById('audio-unlock').style.display = 'none';
+            });
+        }
+
+        // --- GESTION DES SONS ---
+        socket.on('play_sound', (data) => {
+            document.querySelectorAll('audio').forEach(a => { a.pause(); a.currentTime = 0; });
+            const s = document.getElementById(data.track);
+            if(s) s.play().catch(e => console.log("Son bloqué"));
+        });
 
         // Mise à jour complète du jeu
         socket.on('game_state_update', (d) => {
