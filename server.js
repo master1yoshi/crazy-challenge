@@ -16,9 +16,9 @@ app.use(express.json());
 // Distribue correctement les modules clients de Socket.io
 app.use('/socket.io', express.static(path.join(__dirname, 'node_modules/socket.io/client-dist')));
 
-// 1. CONNEXION BASE DE DONNÉES SÉCURISÉE
+// 1. CONNEXION BASE DE DONNÉES SÉCURISÉE (Correction de l'adresse Host ajoutée ici !)
 const db = mysql.createConnection({
-    host: process.env.DB_HOST || 'crazychallenge-achrafmalki448-c95d.l.aivencloud.com',
+    host: process.env.DB_HOST || 'mysql-crazychallenge-achrafmalki448-c95d.l.aivencloud.com',
     port: process.env.DB_PORT || 13187,
     user: process.env.DB_USER || 'avnadmin',
     password: process.env.DB_PASSWORD || 'AVNS_urj7HOP6C8wvfRmHmIa', 
@@ -42,7 +42,6 @@ db.connect((err) => {
 });
 
 // 2. CONFIGURATION DE L'IA GEMINI (Sécurisée par variable d'environnement sur Render)
-// AUCUNE clé en dur ici, GitHub va accepter le push immédiatement !
 const GEMINI_KEY = process.env.GEMINI_API_KEY; 
 const genAI = new GoogleGenerativeAI(GEMINI_KEY || "NO_KEY");
 
@@ -65,7 +64,6 @@ function getOrCreateRoom(roomId) {
 
 // GENERATEUR DE 10 QUESTIONS EN JSON NATIF
 async function generateQuestionsWithAI(theme) {
-    // Si aucune clé n'est configurée, on bascule directement sur le secours sans attendre le crash
     if (!GEMINI_KEY || GEMINI_KEY === "") {
         console.log("No API Key detected, using fallback questions.");
         return getFallbackQuestions(theme);
@@ -99,7 +97,6 @@ async function generateQuestionsWithAI(theme) {
     }
 }
 
-// Fonction isolée pour générer proprement les questions de secours
 function getFallbackQuestions(theme) {
     let fallbackQuestions = [];
     for (let i = 1; i <= 10; i++) {
