@@ -145,6 +145,21 @@ io.on('connection', (socket) => {
         room.teams = {}; 
         io.to(currentRoomId).emit('update_teams', room.teams); 
     });
+    socket.on('buzz', () => {
+        if (!currentRoomId) return;
+        const room = getOrCreateRoom(currentRoomId);
+
+        if (room.canBuzz && !room.currentBuzzer && !room.buzzedThisRound.includes(socket.id)) {
+            room.currentBuzzer = socket.id;
+            room.canBuzz = false;
+            
+            // --- ICI : Ajout du son de buzz ---
+            io.to(currentRoomId).emit('play_sound', { track: 'buzz_sound' });
+            
+            io.to(currentRoomId).emit('lock_buzz', { name: room.teams[socket.id].name, id: socket.id });
+        }
+    });
+
 
     socket.on('start_game_ai', async (theme) => {
         if (!currentRoomId) return;
