@@ -2,117 +2,47 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crazy Challenge - Joueur</title>
+    <title>Chamak Chalo - Joueur</title>
     <style>
         body { font-family: Arial, sans-serif; background: #121212; color: white; text-align: center; padding: 20px; }
-        .header { display: flex; justify-content: space-between; padding: 10px; background: #1f1f1f; border-radius: 8px; margin-bottom: 20px; }
-        .btn { display: block; width: 100%; max-width: 300px; margin: 15px auto; padding: 15px; font-size: 18px; border: none; border-radius: 8px; cursor: pointer; background: #333; color: white; transition: 0.3s; }
-        .btn:active { transform: scale(0.95); }
-        #buzz-btn { background: #e50914; font-size: 24px; padding: 30px; border-radius: 50%; width: 150px; height: 150px; margin: 30px auto; display: none; border: none; color: white; font-weight: bold; cursor: pointer; }
-        #game { display: none; }
-        #question-display { font-size: 20px; margin: 20px 0; color: #ffcc00; font-weight: bold; }
-        #audio-unlock { background: #007bff; padding: 10px 20px; border-radius: 5px; border: none; color: white; cursor: pointer; margin-bottom: 10px; }
+        #buzz-btn { background: #e50914; font-size: 24px; padding: 30px; border-radius: 50%; width: 150px; height: 150px; display: none; margin: 30px auto; border: none; color: white; cursor: pointer; }
+        #game, #options-container { display: none; }
+        .btn { display: block; width: 100%; max-width: 300px; margin: 10px auto; padding: 15px; border-radius: 8px; border: none; cursor: pointer; }
     </style>
 </head>
 <body>
-
-    <button id="audio-unlock" onclick="unlockAudio()">ACTIVER LE SON</button>
-
     <div id="setup">
         <h2>Bienvenue achraf !</h2>
-        <input type="text" id="team-name" placeholder="Nom de ton équipe..." style="padding:10px; border-radius:5px; width:250px;"><br><br>
-        <button class="btn" style="background: #28a745;" onclick="joinGame()">REJOINDRE</button>
+        <input type="text" id="team-name" placeholder="Ton équipe...">
+        <button onclick="joinGame()">REJOINDRE</button>
     </div>
-
     <div id="game">
-        <div class="header">
-            <span id="display-name">Équipe</span>
-            <span id="display-score">Score: 0</span>
-        </div>
-        
-        <div id="question-display">En attente du lancement...</div>
-        
+        <h2 id="display-name"></h2>
+        <div id="question-display">En attente...</div>
         <button id="buzz-btn" onclick="buzz()">BUZZ</button>
-        
-        <div id="options-container" style="display: none;">
-            <button class="btn" id="btn-a" onclick="sendAnswer(0)">A</button>
-            <button class="btn" id="btn-b" onclick="sendAnswer(1)">B</button>
-            <button class="btn" id="btn-c" onclick="sendAnswer(2)">C</button>
-            <button class="btn" id="btn-d" onclick="sendAnswer(3)">D</button>
+        <div id="options-container">
+            <button class="btn" onclick="sendAnswer(0)">A</button>
+            <button class="btn" onclick="sendAnswer(1)">B</button>
+            <button class="btn" onclick="sendAnswer(2)">C</button>
+            <button class="btn" onclick="sendAnswer(3)">D</button>
         </div>
     </div>
-
-    <audio id="start_game" src="/start_game.mp3"></audio>
-    <audio id="pre_question" src="/pre_question.mp3"></audio>
-    <audio id="question_timer" src="/question_timer.mp3"></audio>
-    <audio id="buzz_sound" src="/buzz_sound.mp3"></audio>
-
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
         const roomId = window.location.pathname.split('/')[1];
-        let myTeamName = "";
-
         socket.emit('join_room', roomId);
-
-        function unlockAudio() {
-            document.getElementById('start_game').play().then(() => {
-                document.getElementById('start_game').pause();
-                document.getElementById('audio-unlock').style.display = 'none';
-            });
-        }
-
         function joinGame() {
-            myTeamName = document.getElementById('team-name').value;
-            if(!myTeamName) return alert("Choisis un nom !");
-            socket.emit('join_team', myTeamName);
-            document.getElementById('display-name').innerText = myTeamName;
+            const name = document.getElementById('team-name').value;
+            socket.emit('join_team', name);
             document.getElementById('setup').style.display = 'none';
             document.getElementById('game').style.display = 'block';
         }
-
         function buzz() { socket.emit('buzz'); }
-
-        function sendAnswer(index) {
-            socket.emit('submit_answer', index);
-            document.getElementById('options-container').style.display = 'none';
-        }
-
-        socket.on('play_sound', (data) => {
-            document.querySelectorAll('audio').forEach(a => { a.pause(); a.currentTime = 0; });
-            const s = document.getElementById(data.track);
-            if(s) s.play().catch(e => console.log("Son bloqué"));
-        });
-
-        socket.on('game_state_update', (d) => {
-            document.getElementById('question-display').innerText = d.question;
-            if(d.teams[socket.id]) document.getElementById('display-score').innerText = "Score: " + d.teams[socket.id].score;
-        });
-
-        socket.on('update_teams', (t) => {
-            if(t[socket.id]) document.getElementById('display-score').innerText = "Score: " + t[socket.id].score;
-        });
-
-        socket.on('new_question_intro', (data) => {
-            document.getElementById('question-display').innerText = data.text;
-            document.getElementById('buzz-btn').style.display = 'block';
-            document.getElementById('options-container').style.display = 'none';
-        });
-
-        socket.on('show_options', (data) => {
-            document.getElementById('btn-a').innerText = "A : " + data.options[0];
-            document.getElementById('btn-b').innerText = "B : " + data.options[1];
-            document.getElementById('btn-c').innerText = "C : " + data.options[2];
-            document.getElementById('btn-d').innerText = "D : " + data.options[3];
-        });
-
-        socket.on('lock_buzz', (data) => {
-            document.getElementById('buzz-btn').style.display = 'none';
-            if(data.id === socket.id) {
-                document.getElementById('options-container').style.display = 'block';
-            }
-        });
+        function sendAnswer(i) { socket.emit('submit_answer', i); document.getElementById('options-container').style.display = 'none'; }
+        socket.on('new_question_intro', (d) => { document.getElementById('question-display').innerText = d.text; document.getElementById('buzz-btn').style.display = 'block'; });
+        socket.on('show_options', () => { document.getElementById('buzz-btn').style.display = 'none'; document.getElementById('options-container').style.display = 'block'; });
+        socket.on('lock_buzz', (d) => { document.getElementById('buzz-btn').style.display = 'none'; });
     </script>
 </body>
 </html>
