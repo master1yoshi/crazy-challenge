@@ -1,27 +1,13 @@
 <!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <title>Spectateur</title>
-    <style>
-        body { background: #000; color: white; text-align: center; font-size: 30px; }
-        #q-text { font-size: 50px; margin-top: 50px; }
-    </style>
-</head>
-<body>
-    <div id="q-text">En attente du lancement...</div>
-    <div id="q-options"></div>
-
+<html>
+<body style="background:black; color:gold; text-align:center; font-size:40px;">
+    <div id="q">Bienvenue sur Chamak Chalo</div>
+    <div id="buzzer"></div>
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
-        const roomId = window.location.pathname.split('/')[1];
-        socket.emit('join_room', roomId);
-
-        socket.on('new_question_intro', (d) => { document.getElementById('q-text').innerText = d.text; });
-        socket.on('show_options', (d) => {
-            document.getElementById('q-options').innerHTML = d.options.map(o => `<div>${o}</div>`).join('');
-        });
+        socket.on('new_question', (q) => { document.getElementById('q').innerText = q.text; new Audio('start_game.mp3').play(); });
+        socket.on('buzzer_hit', (name) => { document.getElementById('buzzer').innerText = name + " a buzzé !"; new Audio('buzz_sound.mp3').play(); });
     </script>
 </body>
 </html>

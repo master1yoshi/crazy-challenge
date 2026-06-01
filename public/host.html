@@ -1,29 +1,14 @@
 <!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <title>Host Panel</title>
-</head>
-<body>
-    <h1>Console Admin</h1>
-    <input type="text" id="theme" placeholder="Thème...">
-    <button onclick="launch()">LANCER LE JEU</button>
-    <button onclick="reset()">VIDER LES SCORES</button>
-    <div id="teams"></div>
-
+<html>
+<body style="background:#222; color:white;">
+    <button onclick="socket.emit('start_game', 'cinema')">Lancer Cinéma</button>
+    <button onclick="socket.emit('answer', true)">Bonne réponse</button>
+    <button onclick="socket.emit('answer', false)">Mauvaise réponse</button>
+    <div id="scores"></div>
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
-        const roomId = window.location.pathname.split('/')[1];
-        socket.emit('join_room', roomId);
-
-        function launch() { socket.emit('start_game_ai', document.getElementById('theme').value); }
-        function reset() { socket.emit('reset_teams'); }
-
-        socket.on('update_teams', (t) => {
-            document.getElementById('teams').innerHTML = Object.values(t).map(x => `<div>${x.name}: ${x.score}</div>`).join('');
-        });
-        socket.on('lock_buzz', (d) => alert("BUZZ : " + d.name));
+        socket.on('update_teams', (t) => document.getElementById('scores').innerText = JSON.stringify(t));
     </script>
 </body>
 </html>

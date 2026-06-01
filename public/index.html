@@ -1,56 +1,16 @@
 <!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crazy Challenge - Joueur</title>
-    <style>
-        body { font-family: Arial, sans-serif; background: #121212; color: white; text-align: center; padding: 20px; }
-        .btn { width: 100%; max-width: 300px; margin: 15px auto; padding: 20px; border: none; border-radius: 8px; cursor: pointer; background: #333; color: white; font-size: 18px; }
-        #buzz-btn { background: #e50914; width: 150px; height: 150px; border-radius: 50%; font-weight: bold; display: none; }
-        #game { display: none; }
-    </style>
-</head>
-<body>
-    <div id="setup">
-        <h2>Rejoindre la partie</h2>
-        <input type="text" id="team-name" placeholder="Nom de l'équipe..." style="padding:10px;">
-        <button class="btn" onclick="joinGame()">REJOINDRE</button>
+<html>
+<body style="background:#111; color:white; text-align:center;">
+    <input id="name" placeholder="Nom"> <button onclick="join()">JOIN</button>
+    <div id="game" style="display:none">
+        <button onclick="socket.emit('buzz')" style="width:200px; height:200px; border-radius:50%; background:red;">BUZZ</button>
     </div>
-
-    <div id="game">
-        <h3 id="display-name"></h3>
-        <div id="question-display">En attente...</div>
-        <button id="buzz-btn" onclick="buzz()">BUZZ</button>
-        <div id="options-container" style="display: none;">
-            <button class="btn" onclick="sendAnswer(0)">A</button>
-            <button class="btn" onclick="sendAnswer(1)">B</button>
-            <button class="btn" onclick="sendAnswer(2)">C</button>
-            <button class="btn" onclick="sendAnswer(3)">D</button>
-        </div>
-    </div>
-
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
-        const roomId = window.location.pathname.split('/')[1];
-        socket.emit('join_room', roomId);
-
-        function joinGame() {
-            const name = document.getElementById('team-name').value;
-            if(!name) return;
-            socket.emit('join_team', name);
-            document.getElementById('display-name').innerText = name;
-            document.getElementById('setup').style.display = 'none';
-            document.getElementById('game').style.display = 'block';
-        }
-
-        function buzz() { socket.emit('buzz'); }
-        function sendAnswer(i) { socket.emit('submit_answer', i); document.getElementById('options-container').style.display = 'none'; }
-
-        socket.on('new_question_intro', () => { document.getElementById('buzz-btn').style.display = 'block'; });
-        socket.on('show_options', () => { document.getElementById('options-container').style.display = 'block'; document.getElementById('buzz-btn').style.display = 'none'; });
-        socket.on('lock_buzz', (d) => { if(d.id === socket.id) document.getElementById('buzz-btn').style.display = 'none'; });
+        function join() { socket.emit('join', document.getElementById('name').value); document.getElementById('game').style.display='block'; }
+        socket.on('new_question', () => new Audio('pre_question.mp3').play());
+        socket.on('buzzer_hit', () => new Audio('buzz_sound.mp3').play());
     </script>
 </body>
 </html>
