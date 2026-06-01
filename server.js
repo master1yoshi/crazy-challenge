@@ -16,34 +16,58 @@ app.use(express.static(path.join(__dirname, 'public')));
 let db;
 
 async function initDB() {
-    db = await mysql.createConnection({
-        host: process.env.DB_HOST,
-        port: parseInt(process.env.DB_PORT) || 13187,
-        user: process.env.DB_USER,
-        password: process.env.DB_PASSWORD,
-        database: process.env.DB_DATABASE,
-        ssl: { rejectUnauthorized: false }
-    });
+    try {
+        db = await mysql.createConnection({
+            host: process.env.DB_HOST,
+            port: parseInt(process.env.DB_PORT) || 13187,
+            user: process.env.DB_USER,
+            password: process.env.DB_PASSWORD,
+            database: process.env.DB_DATABASE,
+            ssl: { rejectUnauthorized: false }
+        });
 
-    await db.execute(`CREATE TABLE IF NOT EXISTS questions (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        type VARCHAR(50), text TEXT,
-        option_a VARCHAR(255), option_b VARCHAR(255),
-        option_c VARCHAR(255), option_d VARCHAR(255), answer INT
-    )`);
+        // Suppression de l'ancienne table si elle bloque la structure
+        // Décommente la ligne suivante SI tu veux réinitialiser proprement la table :
+        // await db.execute(`DROP TABLE IF EXISTS questions`);
 
-    const [rows] = await db.execute('SELECT COUNT(*) as count FROM questions');
-    if (rows[0].count === 0) {
-        console.log("Importing 200 questions...");
-        const data = JSON.parse(fs.readFileSync('questions.json', 'utf8'));
-        for (const [type, questions] of Object.entries(data)) {
-            for (const q of questions) {
-                await db.execute(
-                    'INSERT INTO questions (type, text, option_a, option_b, option_c, option_d, answer) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                    [type, q.text, q.options[0], q.options[1], q.options[2], q.options[3], q.answer]
-                );
+        await db.execute(`CREATE TABLE IF NOT EXISTS questions (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            type VARCHAR(50), 
+            text TEXT,
+            option_a VARCHAR(255), 
+            option_b VARCHAR(255),
+            option_c VARCHAR(255), 
+            option_d VARCHAR(255), 
+            answer INT
+        )`);
+
+        const [rows] = await db.execute('SELECT COUNT(*) as count FROM questions');
+        
+        if (rows[0].count === 0) {
+            console.log("Base de données vide. Importation des questions depuis questions.json...");
+            const filePath = path.join(__dirname, 'questions.json');
+            
+            if (!fs.existsSync(filePath)) {
+                console.error("Erreur : Le fichier questions.json est introuvable au chemin :", filePath);
+                return;
             }
+
+            const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+            
+            for (const [type, questions] of Object.entries(data)) {
+                for (const q of questions) {
+                    await db.execute(
+                        'INSERT INTO questions (type, text, option_a, option_b, option_c, option_d, answer) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                        [type, q.text, q.options[0], q.options[1], q.options[2], q.options[3], q.answer]
+                    );
+                }
+            }
+            console.log("Importation réussie !");
+        } else {
+            console.log(`Log : Nombre de questions actuellement en BDD : ${rows[0].count}`);
         }
+    } catch (error) {
+        console.error("Erreur critique lors de l'initialisation de la BDD :", error);
     }
 }
 
@@ -59,12 +83,19 @@ function getOrCreateRoom(roomId) {
 }
 
 async function getQuestionsFromDB(theme) {
-    const [rows] = await db.execute('SELECT * FROM questions WHERE type = ? ORDER BY RAND() LIMIT 10', [theme]);
-    return rows.map(q => ({
-        type: q.type, text: q.text,
-        options: [q.option_a, q.option_b, q.option_c, q.option_d],
-        answer: q.answer
-    }));
+    try {
+        const [rows] = await db.execute('SELECT * FROM questions WHERE type = ? ORDER BY RAND() LIMIT 10', [theme]);
+        console.log(`Questions trouvées pour le thème [${theme}] : ${rows.length}`);
+        return rows.map(q => ({
+            type: q.type, 
+            text: q.text,
+            options: [q.option_a, q.option_b, q.option_c, q.option_d],
+            answer: q.answer
+        }));
+    } catch (error) {
+        console.error("Erreur lors de la récupération des questions :", error);
+        return [];
+    }
 }
 
 io.on('connection', (socket) => {
@@ -90,7 +121,6 @@ io.on('connection', (socket) => {
         io.to(currentRoomId).emit('update_teams', {});
     });
 
-    // FIXED: Only one buzz handler
     socket.on('buzz', () => {
         if (!currentRoomId) return;
         const room = getOrCreateRoom(currentRoomId);
@@ -106,9 +136,18 @@ io.on('connection', (socket) => {
         if (!currentRoomId) return;
         const room = getOrCreateRoom(currentRoomId);
         io.to(currentRoomId).emit('play_sound', { track: 'start_game' });
+        
+        // CORRECTION : Récupération et assignation des questions
         room.gameQuestions = await getQuestionsFromDB(theme);
+        
+        if (room.gameQuestions.length === 0) {
+            console.error(`Aucune question trouvée pour le thème : ${theme}`);
+            return;
+        }
+
         room.currentQuestionIndex = 0;
-        setTimeout(() => sendQuestion(currentRoomId), 20000);
+        // Lancement immédiat de la première question au lieu d'attendre 20 secondes !
+        sendQuestion(currentRoomId); 
     });
 
     socket.on('submit_answer', (choiceIndex) => {
