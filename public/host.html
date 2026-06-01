@@ -2,48 +2,28 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Console Admin - Chamak Chalo</title>
-    <script src="/socket.io/socket.io.js"></script>
-    <style>
-        body { font-family: sans-serif; background: #1a1a1a; color: white; text-align: center; }
-        .controls { margin: 20px; padding: 20px; border: 1px solid #444; }
-        button { padding: 15px 30px; margin: 10px; cursor: pointer; font-size: 16px; border: none; border-radius: 5px; }
-        .start-btn { background-color: green; color: white; }
-        .reset-btn { background-color: red; color: white; }
-        #classement { margin-top: 20px; text-align: left; display: inline-block; }
-    </style>
+    <title>Host Panel</title>
 </head>
 <body>
     <h1>Console Admin</h1>
-    <div class="controls">
-        <h3>Choisir le thème :</h3>
-        <button onclick="setTheme('maroc')">Maroc</button>
-        <button onclick="setTheme('cuisine')">Cuisine</button>
-        <button class="start-btn" onclick="startGame()">COMMENCER</button>
-        <button class="reset-btn" onclick="resetTeams()">VIDER</button>
-    </div>
-    <div id="statut">Thème : Aucun</div>
-    <div id="classement">
-        <h3>Classement :</h3>
-        <ul id="teams-list"></ul>
-    </div>
+    <input type="text" id="theme" placeholder="Thème...">
+    <button onclick="launch()">LANCER LE JEU</button>
+    <button onclick="reset()">VIDER LES SCORES</button>
+    <div id="teams"></div>
+
+    <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
         const roomId = window.location.pathname.split('/')[1];
-        let selectedTheme = 'maroc';
         socket.emit('join_room', roomId);
-        function setTheme(t) { selectedTheme = t; document.getElementById('statut').innerText = "Thème : " + t.toUpperCase(); }
-        function startGame() { socket.emit('start_game_ai', selectedTheme); }
-        function resetTeams() { socket.emit('reset_teams'); }
-        socket.on('update_teams', (teams) => {
-            const list = document.getElementById('teams-list');
-            list.innerHTML = '';
-            for (let id in teams) {
-                let li = document.createElement('li');
-                li.innerText = `${teams[id].name} : ${teams[id].score} pts`;
-                list.appendChild(li);
-            }
+
+        function launch() { socket.emit('start_game_ai', document.getElementById('theme').value); }
+        function reset() { socket.emit('reset_teams'); }
+
+        socket.on('update_teams', (t) => {
+            document.getElementById('teams').innerHTML = Object.values(t).map(x => `<div>${x.name}: ${x.score}</div>`).join('');
         });
+        socket.on('lock_buzz', (d) => alert("BUZZ : " + d.name));
     </script>
 </body>
 </html>

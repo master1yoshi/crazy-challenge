@@ -2,47 +2,55 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Chamak Chalo - Joueur</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crazy Challenge - Joueur</title>
     <style>
         body { font-family: Arial, sans-serif; background: #121212; color: white; text-align: center; padding: 20px; }
-        #buzz-btn { background: #e50914; font-size: 24px; padding: 30px; border-radius: 50%; width: 150px; height: 150px; display: none; margin: 30px auto; border: none; color: white; cursor: pointer; }
-        #game, #options-container { display: none; }
-        .btn { display: block; width: 100%; max-width: 300px; margin: 10px auto; padding: 15px; border-radius: 8px; border: none; cursor: pointer; }
+        .btn { width: 100%; max-width: 300px; margin: 15px auto; padding: 20px; border: none; border-radius: 8px; cursor: pointer; background: #333; color: white; font-size: 18px; }
+        #buzz-btn { background: #e50914; width: 150px; height: 150px; border-radius: 50%; font-weight: bold; display: none; }
+        #game { display: none; }
     </style>
 </head>
 <body>
     <div id="setup">
-        <h2>Bienvenue achraf !</h2>
-        <input type="text" id="team-name" placeholder="Ton équipe...">
-        <button onclick="joinGame()">REJOINDRE</button>
+        <h2>Rejoindre la partie</h2>
+        <input type="text" id="team-name" placeholder="Nom de l'équipe..." style="padding:10px;">
+        <button class="btn" onclick="joinGame()">REJOINDRE</button>
     </div>
+
     <div id="game">
-        <h2 id="display-name"></h2>
+        <h3 id="display-name"></h3>
         <div id="question-display">En attente...</div>
         <button id="buzz-btn" onclick="buzz()">BUZZ</button>
-        <div id="options-container">
+        <div id="options-container" style="display: none;">
             <button class="btn" onclick="sendAnswer(0)">A</button>
             <button class="btn" onclick="sendAnswer(1)">B</button>
             <button class="btn" onclick="sendAnswer(2)">C</button>
             <button class="btn" onclick="sendAnswer(3)">D</button>
         </div>
     </div>
+
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
         const roomId = window.location.pathname.split('/')[1];
         socket.emit('join_room', roomId);
+
         function joinGame() {
             const name = document.getElementById('team-name').value;
+            if(!name) return;
             socket.emit('join_team', name);
+            document.getElementById('display-name').innerText = name;
             document.getElementById('setup').style.display = 'none';
             document.getElementById('game').style.display = 'block';
         }
+
         function buzz() { socket.emit('buzz'); }
         function sendAnswer(i) { socket.emit('submit_answer', i); document.getElementById('options-container').style.display = 'none'; }
-        socket.on('new_question_intro', (d) => { document.getElementById('question-display').innerText = d.text; document.getElementById('buzz-btn').style.display = 'block'; });
-        socket.on('show_options', () => { document.getElementById('buzz-btn').style.display = 'none'; document.getElementById('options-container').style.display = 'block'; });
-        socket.on('lock_buzz', (d) => { document.getElementById('buzz-btn').style.display = 'none'; });
+
+        socket.on('new_question_intro', () => { document.getElementById('buzz-btn').style.display = 'block'; });
+        socket.on('show_options', () => { document.getElementById('options-container').style.display = 'block'; document.getElementById('buzz-btn').style.display = 'none'; });
+        socket.on('lock_buzz', (d) => { if(d.id === socket.id) document.getElementById('buzz-btn').style.display = 'none'; });
     </script>
 </body>
 </html>
