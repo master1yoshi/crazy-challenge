@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<body style="background:#222; color:white; font-family: sans-serif; padding: 20px;">
+    <h2>Panneau d'Administration (Host)</h2>
+    <button onclick="createGame()" style="padding: 15px; background: green; color: white; border: none; cursor: pointer;">Créer une Session Multi-Campus</button>
+    
+    <div id="dashboard" style="display:none; margin-top: 20px;">
+        <h1 style="color: gold;">PIN du Jeu: <span id="pinDisplay"></span></h1>
+        
+        <div style="display: flex; gap: 50px;">
+            <div>
+                <h3>Équipes/Joueurs:</h3>
+                <ul id="playerList"></ul>
+            </div>
+            
+            <div style="background: #333; padding: 20px; border-radius: 10px;">
+                <h3>Contrôles</h3>
+                <button onclick="nextQuestion()" style="padding: 10px; width: 100%; margin-bottom: 10px;">Lancer une Question</button>
+                <div id="buzzAlert" style="color: red; font-size: 20px; font-weight: bold; margin: 10px 0;">En attente...</div>
+                <button onclick="validateAnswer(true)" style="padding: 10px; background: blue; color: white;">Bonne Réponse</button>
+                <button onclick="validateAnswer(false)" style="padding: 10px; background: darkred; color: white;">Mauvaise Réponse</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        let myPin = "";
+
+        function createGame() { socket.emit('admin_create_game'); }
+
+        socket.on('game_created', (data) => {
+            myPin = data.pin;
+            document.getElementById('pinDisplay').innerText = myPin;
+            document.getElementById('dashboard').style.display = 'block';
+        });
+
+        socket.on('player_joined', (name) => {
+            const li = document.createElement('li');
+            li.innerText = name;
+            document.getElementById('playerList').appendChild(li);
+        });
+
+        function nextQuestion() {
+            document.getElementById('buzzAlert').innerText = "Lecture de la question...";
+            document.getElementById('buzzAlert').style.color = "yellow";
+            socket.emit('admin_action_next', { pin: myPin });
+        }
+
+        socket.on('player_buzzed', (socketId) => {
+            // In a real app, map socketId to player name.
+            document.getElementById('buzzAlert').innerText = `BUZZER APPUYÉ !`;
+            document.getElementById('buzzAlert').style.color = "red";
+        });
+
+        function validateAnswer(isCorrect) {
+            socket.emit('admin_validate', { pin: myPin, isCorrect });
+            document.getElementById('buzzAlert').innerText = "En attente de la prochaine question...";
+            document.getElementById('buzzAlert').style.color = "white";
+        }
+    </script>
+</body>
+</html>

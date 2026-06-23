@@ -1,13 +1,124 @@
 <!DOCTYPE html>
 <html>
-<body style="background:black; color:gold; text-align:center; font-size:40px;">
-    <div id="q">Bienvenue sur Chamak Chalo</div>
-    <div id="buzzer"></div>
+<head>
+    <meta charset="UTF-8">
+    <title>Écran Spectateur</title>
+    <style>
+        body { 
+            background: black; 
+            color: gold; 
+            text-align: center; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            margin: 0;
+            overflow: hidden; /* Prevents scrollbars on big screens */
+        }
+        #setup { margin-top: 15%; }
+        #game { display: none; margin-top: 5%; padding: 20px; }
+        
+        .choice-container {
+            display: flex; 
+            flex-wrap: wrap; 
+            justify-content: center; 
+            width: 90%; 
+            margin: auto;
+            gap: 20px;
+        }
+        
+        .choice { 
+            visibility: hidden; 
+            font-size: 45px; 
+            padding: 30px; 
+            background: #222; 
+            border-radius: 15px; 
+            color: white; 
+            width: 40%;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            border: 2px solid #444;
+        }
+
+        #qText { font-size: 65px; margin-bottom: 50px; text-shadow: 2px 2px 10px rgba(255, 215, 0, 0.5); }
+        #buzzerAlert { font-size: 80px; font-weight: bold; margin-top: 50px; min-height: 100px; text-transform: uppercase; }
+    </style>
+</head>
+<body>
+    
+    <div id="setup">
+        <h1 style="font-size: 70px;">Mode Grand Écran</h1>
+        <input id="pin" placeholder="Entrez le PIN" style="padding: 20px; font-size: 30px; text-align: center; border-radius: 10px; border: none;"><br><br>
+        <button onclick="join()" style="padding: 20px 50px; font-size: 30px; background: gold; border: none; border-radius: 10px; cursor: pointer; font-weight: bold;">Afficher</button>
+    </div>
+
+    <div id="game">
+        <h1 id="qText">En attente du lancement de la partie...</h1>
+        
+        <div class="choice-container">
+            <div id="cA" class="choice">A: <span id="tA"></span></div>
+            <div id="cB" class="choice">B: <span id="tB"></span></div>
+            <div id="cC" class="choice">C: <span id="tC"></span></div>
+            <div id="cD" class="choice">D: <span id="tD"></span></div>
+        </div>
+
+        <div id="buzzerAlert"></div>
+    </div>
+
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
-        socket.on('new_question', (q) => { document.getElementById('q').innerText = q.text; new Audio('start_game.mp3').play(); });
-        socket.on('buzzer_hit', (name) => { document.getElementById('buzzer').innerText = name + " a buzzé !"; new Audio('buzz_sound.mp3').play(); });
+
+        function join() {
+            const pin = document.getElementById('pin').value;
+            // Spectators join the room but don't show up in the Admin's player list
+            socket.emit('join_game', { pin: pin, name: 'Spectateur', role: 'spectateur' });
+        }
+
+        socket.on('join_success', () => {
+            document.getElementById('setup').style.display = 'none';
+            document.getElementById('game').style.display = 'block';
+        });
+
+        socket.on('display_question', (data) => {
+            // Play the suspense sound for the whole room
+            new Audio('sounds/start_game.mp3').play();
+            
+            // Reset the screen
+            document.getElementById('buzzerAlert').innerText = "";
+            document.getElementById('qText').innerText = data.question_text;
+            
+            const letters = ['A', 'B', 'C', 'D'];
+            letters.forEach((l) => {
+                document.getElementById(`c${l}`).style.visibility = 'hidden';
+                document.getElementById(`t${l}`).innerText = data[`choice_${l.toLowerCase()}`];
+            });
+
+            // Synchronize the staggered reveal with the player screens (1 second each)
+            setTimeout(() => document.getElementById('cA').style.visibility = 'visible', 1000);
+            setTimeout(() => document.getElementById('cB').style.visibility = 'visible', 2000);
+            setTimeout(() => document.getElementById('cC').style.visibility = 'visible', 3000);
+            setTimeout(() => document.getElementById('cD').style.visibility = 'visible', 4000);
+        });
+
+        socket.on('buzzer_hit', (socketId) => {
+            // Play the buzzer sound loudly for the audience
+            new Audio('sounds/buzz_sound.mp3').play();
+            
+            const alertBox = document.getElementById('buzzerAlert');
+            alertBox.innerText = "🚨 BUZZER DÉCLENCHÉ ! 🚨";
+            alertBox.style.color = "red";
+            alertBox.style.textShadow = "0 0 20px red";
+        });
+        
+        socket.on('answer_result', (isCorrect) => {
+            const alertBox = document.getElementById('buzzerAlert');
+            if(isCorrect) {
+                 alertBox.innerText = "✅ BONNE RÉPONSE !";
+                 alertBox.style.color = "#00FF00"; // Bright lime green
+                 alertBox.style.textShadow = "0 0 20px #00FF00";
+            } else {
+                 alertBox.innerText = "❌ MAUVAISE RÉPONSE !";
+                 alertBox.style.color = "#FF0000";
+                 alertBox.style.textShadow = "0 0 20px #FF0000";
+            }
+        });
     </script>
 </body>
 </html>
