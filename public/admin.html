@@ -1,24 +1,68 @@
 <!DOCTYPE html>
-<html>
-<body style="background:#222; color:white; font-family: sans-serif; padding: 20px;">
-    <h2>Panneau d'Administration (Host)</h2>
-    <button onclick="createGame()" style="padding: 15px; background: green; color: white; border: none; cursor: pointer;">Créer une Session Multi-Campus</button>
-    
-    <div id="dashboard" style="display:none; margin-top: 20px;">
-        <h1 style="color: gold;">PIN du Jeu: <span id="pinDisplay"></span></h1>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Host Dashboard - Crazy Challenge</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: #f8fafc; margin: 0; padding: 20px; }
+        .header { display: flex; justify-content: space-between; align-items: center; background: #1e293b; padding: 20px; border-radius: 10px; margin-bottom: 20px; }
+        .btn-main { background: #3b82f6; color: white; padding: 15px 30px; border: none; border-radius: 8px; font-size: 18px; cursor: pointer; font-weight: bold; }
+        .btn-main:hover { background: #2563eb; }
         
-        <div style="display: flex; gap: 50px;">
-            <div>
-                <h3>Équipes/Joueurs:</h3>
-                <ul id="playerList"></ul>
-            </div>
+        .dashboard-grid { display: grid; grid-template-columns: 300px 1fr; gap: 20px; display: none; }
+        .panel { background: #1e293b; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        
+        /* Affichage de la question pour le prof */
+        .q-text { font-size: 24px; font-weight: bold; color: #fbbf24; margin-bottom: 20px; }
+        .choice { background: #334155; padding: 15px; margin-bottom: 10px; border-radius: 8px; font-size: 18px; }
+        .choice.correct { background: rgba(34, 197, 94, 0.2); border: 2px solid #22c55e; color: #4ade80; font-weight: bold; }
+        .correct-alert { color: #22c55e; font-size: 20px; font-weight: bold; margin-top: 15px; text-align: center; }
+
+        /* Alertes de Buzz */
+        .buzz-alert { background: #7f1d1d; color: white; padding: 20px; border-radius: 8px; text-align: center; font-size: 22px; margin-top: 20px; display: none; border: 2px solid #ef4444; }
+        .buzz-alert span { font-size: 30px; font-weight: bold; color: #fca5a5; display: block; margin-top: 10px; }
+        
+        .action-btns { display: flex; gap: 10px; margin-top: 20px; }
+        .btn-good { background: #22c55e; flex: 1; padding: 15px; border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 18px;}
+        .btn-bad { background: #ef4444; flex: 1; padding: 15px; border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; font-size: 18px;}
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Panneau de Contrôle (Host)</h1>
+        <button onclick="createGame()" class="btn-main" id="createBtn">Créer la Session</button>
+        <h2 id="pinDisplay" style="color: #fbbf24; display: none;">PIN: <span id="pinVal"></span></h2>
+    </div>
+
+    <div class="dashboard-grid" id="dashboard">
+        <!-- Sidebar Joueurs -->
+        <div class="panel">
+            <h3 style="margin-top:0;">Équipes Connectées</h3>
+            <ul id="playerList" style="list-style: none; padding: 0; font-size: 18px; line-height: 2;"></ul>
+        </div>
+
+        <!-- Main Area -->
+        <div class="panel">
+            <button onclick="nextQuestion()" class="btn-main" style="width: 100%; margin-bottom: 20px;">Lancer une Question</button>
             
-            <div style="background: #333; padding: 20px; border-radius: 10px;">
-                <h3>Contrôles</h3>
-                <button onclick="nextQuestion()" style="padding: 10px; width: 100%; margin-bottom: 10px;">Lancer une Question</button>
-                <div id="buzzAlert" style="color: red; font-size: 20px; font-weight: bold; margin: 10px 0;">En attente...</div>
-                <button onclick="validateAnswer(true)" style="padding: 10px; background: blue; color: white;">Bonne Réponse</button>
-                <button onclick="validateAnswer(false)" style="padding: 10px; background: darkred; color: white;">Mauvaise Réponse</button>
+            <div id="qArea" style="display: none;">
+                <div class="q-text" id="hostQ"></div>
+                <div class="choice" id="hA">A: <span></span></div>
+                <div class="choice" id="hB">B: <span></span></div>
+                <div class="choice" id="hC">C: <span></span></div>
+                <div class="choice" id="hD">D: <span></span></div>
+                <div class="correct-alert" id="correctAlert"></div>
+            </div>
+
+            <div class="buzz-alert" id="buzzArea">
+                🚨 BUZZ ! 🚨
+                <span id="buzzInfo">En attente de l'équipe...</span>
+            </div>
+
+            <div class="action-btns" id="validationBtns" style="display: none;">
+                <button class="btn-good" onclick="validate(true)">✅ Valider : Bonne Réponse</button>
+                <button class="btn-bad" onclick="validate(false)">❌ Valider : Mauvaise Réponse</button>
             </div>
         </div>
     </div>
@@ -32,32 +76,52 @@
 
         socket.on('game_created', (data) => {
             myPin = data.pin;
-            document.getElementById('pinDisplay').innerText = myPin;
-            document.getElementById('dashboard').style.display = 'block';
+            document.getElementById('createBtn').style.display = 'none';
+            document.getElementById('pinDisplay').style.display = 'block';
+            document.getElementById('pinVal').innerText = myPin;
+            document.getElementById('dashboard').style.display = 'grid';
         });
 
         socket.on('player_joined', (name) => {
-            const li = document.createElement('li');
-            li.innerText = name;
-            document.getElementById('playerList').appendChild(li);
+            document.getElementById('playerList').innerHTML += `<li>🟢 ${name}</li>`;
         });
 
         function nextQuestion() {
-            document.getElementById('buzzAlert').innerText = "Lecture de la question...";
-            document.getElementById('buzzAlert').style.color = "yellow";
+            document.getElementById('qArea').style.display = 'block';
+            document.getElementById('buzzArea').style.display = 'none';
+            document.getElementById('validationBtns').style.display = 'none';
             socket.emit('admin_action_next', { pin: myPin });
         }
 
-        socket.on('player_buzzed', (socketId) => {
-            // In a real app, map socketId to player name.
-            document.getElementById('buzzAlert').innerText = `BUZZER APPUYÉ !`;
-            document.getElementById('buzzAlert').style.color = "red";
+        socket.on('admin_display_question', (q) => {
+            document.getElementById('hostQ').innerText = q.question_text;
+            ['A', 'B', 'C', 'D'].forEach(l => {
+                const div = document.getElementById(`h${l}`);
+                div.className = 'choice'; // Reset
+                div.innerHTML = `${l}: ${q[`choice_${l.toLowerCase()}`]}`;
+                
+                // Mettre en vert la bonne réponse pour le prof
+                if (q.correct_answer === l) {
+                    div.classList.add('correct');
+                    document.getElementById('correctAlert').innerText = `👉 LA BONNE RÉPONSE EST : ${l}`;
+                }
+            });
         });
 
-        function validateAnswer(isCorrect) {
+        socket.on('player_buzzed', (name) => {
+            document.getElementById('buzzArea').style.display = 'block';
+            document.getElementById('buzzInfo').innerText = `${name} réfléchit...`;
+        });
+
+        socket.on('player_answered', (data) => {
+            document.getElementById('buzzInfo').innerText = `${data.name} a choisi la réponse : ${data.answer}`;
+            document.getElementById('validationBtns').style.display = 'flex';
+        });
+
+        function validate(isCorrect) {
             socket.emit('admin_validate', { pin: myPin, isCorrect });
-            document.getElementById('buzzAlert').innerText = "En attente de la prochaine question...";
-            document.getElementById('buzzAlert').style.color = "white";
+            document.getElementById('validationBtns').style.display = 'none';
+            document.getElementById('buzzArea').style.display = 'none';
         }
     </script>
 </body>

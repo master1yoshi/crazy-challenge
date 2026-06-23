@@ -1,122 +1,85 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Écran Spectateur</title>
+    <title>Grand Écran</title>
     <style>
-        body { 
-            background: black; 
-            color: gold; 
-            text-align: center; 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            margin: 0;
-            overflow: hidden; /* Prevents scrollbars on big screens */
-        }
-        #setup { margin-top: 15%; }
-        #game { display: none; margin-top: 5%; padding: 20px; }
+        body { background: radial-gradient(circle, #1a1a2e, #0f0f1a); color: white; text-align: center; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 50px; overflow: hidden; }
         
-        .choice-container {
-            display: flex; 
-            flex-wrap: wrap; 
-            justify-content: center; 
-            width: 90%; 
-            margin: auto;
-            gap: 20px;
-        }
+        #qText { font-size: 60px; font-weight: bold; color: #fbbf24; margin-bottom: 50px; text-shadow: 0 5px 15px rgba(0,0,0,0.8); }
         
-        .choice { 
-            visibility: hidden; 
-            font-size: 45px; 
-            padding: 30px; 
-            background: #222; 
-            border-radius: 15px; 
-            color: white; 
-            width: 40%;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            border: 2px solid #444;
-        }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; width: 90%; margin: auto; }
+        .choice { background: rgba(255,255,255,0.05); border: 3px solid rgba(255,255,255,0.2); padding: 30px; font-size: 40px; border-radius: 20px; opacity: 0; transition: 0.5s; }
+        
+        .choice.visible { opacity: 1; transform: translateY(0); }
+        .choice.selected { background: #3b82f6; border-color: #60a5fa; box-shadow: 0 0 30px #3b82f6; transform: scale(1.05); }
 
-        #qText { font-size: 65px; margin-bottom: 50px; text-shadow: 2px 2px 10px rgba(255, 215, 0, 0.5); }
-        #buzzerAlert { font-size: 80px; font-weight: bold; margin-top: 50px; min-height: 100px; text-transform: uppercase; }
+        #actionBox { margin-top: 50px; font-size: 50px; font-weight: bold; height: 100px; text-transform: uppercase; }
+        
+        .pulse-text { animation: blink 1s infinite; color: #ef4444; text-shadow: 0 0 20px red; }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
     </style>
 </head>
 <body>
-    
     <div id="setup">
-        <h1 style="font-size: 70px;">Mode Grand Écran</h1>
-        <input id="pin" placeholder="Entrez le PIN" style="padding: 20px; font-size: 30px; text-align: center; border-radius: 10px; border: none;"><br><br>
-        <button onclick="join()" style="padding: 20px 50px; font-size: 30px; background: gold; border: none; border-radius: 10px; cursor: pointer; font-weight: bold;">Afficher</button>
+        <h1>Écran Spectateur</h1>
+        <input id="pin" placeholder="PIN" style="font-size:30px; padding:10px; text-align:center;"><br><br>
+        <button onclick="join()" style="font-size:30px; padding:10px 30px; cursor:pointer;">Afficher</button>
     </div>
 
-    <div id="game">
-        <h1 id="qText">En attente du lancement de la partie...</h1>
+    <div id="game" style="display: none;">
+        <div id="qText">Préparez-vous...</div>
         
-        <div class="choice-container">
+        <div class="grid">
             <div id="cA" class="choice">A: <span id="tA"></span></div>
             <div id="cB" class="choice">B: <span id="tB"></span></div>
             <div id="cC" class="choice">C: <span id="tC"></span></div>
             <div id="cD" class="choice">D: <span id="tD"></span></div>
         </div>
 
-        <div id="buzzerAlert"></div>
+        <div id="actionBox"></div>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
-
         function join() {
-            const pin = document.getElementById('pin').value;
-            // Spectators join the room but don't show up in the Admin's player list
-            socket.emit('join_game', { pin: pin, name: 'Spectateur', role: 'spectateur' });
-        }
-
-        socket.on('join_success', () => {
+            socket.emit('join_game', { pin: document.getElementById('pin').value, name: 'Spectateur', role: 'spectateur' });
             document.getElementById('setup').style.display = 'none';
             document.getElementById('game').style.display = 'block';
-        });
+        }
 
         socket.on('display_question', (data) => {
-            // Play the suspense sound for the whole room
-            new Audio('sounds/start_game.mp3').play();
-            
-            // Reset the screen
-            document.getElementById('buzzerAlert').innerText = "";
+            document.getElementById('actionBox').className = '';
+            document.getElementById('actionBox').innerHTML = '';
             document.getElementById('qText').innerText = data.question_text;
             
-            const letters = ['A', 'B', 'C', 'D'];
-            letters.forEach((l) => {
-                document.getElementById(`c${l}`).style.visibility = 'hidden';
+            ['A','B','C','D'].forEach((l, index) => {
+                const el = document.getElementById(`c${l}`);
+                el.className = 'choice'; // Reset classes
                 document.getElementById(`t${l}`).innerText = data[`choice_${l.toLowerCase()}`];
+                setTimeout(() => el.classList.add('visible'), (index + 1) * 1000);
             });
-
-            // Synchronize the staggered reveal with the player screens (1 second each)
-            setTimeout(() => document.getElementById('cA').style.visibility = 'visible', 1000);
-            setTimeout(() => document.getElementById('cB').style.visibility = 'visible', 2000);
-            setTimeout(() => document.getElementById('cC').style.visibility = 'visible', 3000);
-            setTimeout(() => document.getElementById('cD').style.visibility = 'visible', 4000);
         });
 
-        socket.on('buzzer_hit', (socketId) => {
-            // Play the buzzer sound loudly for the audience
-            new Audio('sounds/buzz_sound.mp3').play();
+        // Quand quelqu'un buzz
+        socket.on('spectator_answer_locked', (data) => {
+            const box = document.getElementById('actionBox');
+            box.innerHTML = `${data.name} A CHOISI : ${data.answer}`;
+            box.style.color = "#60a5fa";
             
-            const alertBox = document.getElementById('buzzerAlert');
-            alertBox.innerText = "🚨 BUZZER DÉCLENCHÉ ! 🚨";
-            alertBox.style.color = "red";
-            alertBox.style.textShadow = "0 0 20px red";
+            // Met en évidence la réponse sur l'écran géant
+            document.getElementById(`c${data.answer}`).classList.add('selected');
         });
-        
+
         socket.on('answer_result', (isCorrect) => {
-            const alertBox = document.getElementById('buzzerAlert');
+            const box = document.getElementById('actionBox');
             if(isCorrect) {
-                 alertBox.innerText = "✅ BONNE RÉPONSE !";
-                 alertBox.style.color = "#00FF00"; // Bright lime green
-                 alertBox.style.textShadow = "0 0 20px #00FF00";
+                 box.innerText = "✅ BONNE RÉPONSE !";
+                 box.style.color = "#4ade80"; 
             } else {
-                 alertBox.innerText = "❌ MAUVAISE RÉPONSE !";
-                 alertBox.style.color = "#FF0000";
-                 alertBox.style.textShadow = "0 0 20px #FF0000";
+                 box.innerText = "❌ MAUVAISE RÉPONSE !";
+                 box.style.color = "#f87171";
             }
         });
     </script>
