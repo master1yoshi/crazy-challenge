@@ -1,77 +1,334 @@
 <!DOCTYPE html>
-<html>
-<body style="background:#111; color:white; text-align:center; font-family: sans-serif;">
-    <div id="login" style="margin-top: 20%;">
-        <input id="name" placeholder="Nom de l'équipe" style="padding: 10px; font-size: 18px;"><br><br>
-        <input id="pin" placeholder="PIN" style="padding: 10px; font-size: 18px;"><br><br>
-        <button onclick="join()" style="padding: 10px 20px; font-size: 18px;">Rejoindre</button>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Joueur - Crazy Challenge</title>
+    <style>
+        /* Variables de couleurs façon jeu télévisé */
+        :root {
+            --bg-color: #121212;
+            --text-color: #ffffff;
+            --color-a: #e21b3c; /* Rouge */
+            --color-b: #1368ce; /* Bleu */
+            --color-c: #d89e00; /* Jaune */
+            --color-d: #26890c; /* Vert */
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent; /* Enlève le flash bleu sur mobile */
+        }
+
+        /* --- ÉCRAN DE CONNEXION --- */
+        #login-screen {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .login-box {
+            background: #222;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        .login-box input {
+            width: 90%;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border: 2px solid #444;
+            background: #111;
+            color: white;
+            font-size: 18px;
+            text-align: center;
+            transition: 0.3s;
+        }
+
+        .login-box input:focus {
+            border-color: #6c63ff;
+            outline: none;
+        }
+
+        .login-box button {
+            width: 100%;
+            padding: 15px;
+            margin-top: 20px;
+            background: #6c63ff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(108, 99, 255, 0.4);
+            transition: 0.2s;
+        }
+
+        .login-box button:active { transform: scale(0.98); }
+
+        /* --- ÉCRAN DE JEU --- */
+        #game-screen {
+            display: none;
+            min-height: 100vh;
+            flex-direction: column;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        #question-header {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 30px;
+            margin-top: 20px;
+            min-height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-shadow: 1px 1px 5px rgba(0,0,0,0.5);
+        }
+
+        /* La grille s'adapte : 1 colonne sur tel, 2 colonnes sur PC */
+        .choices-grid {
+            display: grid;
+            grid-template-columns: 1fr; /* Mobile par défaut */
+            gap: 15px;
+            flex-grow: 1;
+            margin-bottom: 20px;
+        }
+
+        @media (min-width: 768px) {
+            .choices-grid {
+                grid-template-columns: 1fr 1fr; /* PC et Tablettes */
+            }
+        }
+
+        .choice-btn {
+            position: relative;
+            border: none;
+            border-radius: 12px;
+            padding: 20px;
+            font-size: 20px;
+            font-weight: bold;
+            color: white;
+            text-align: left;
+            display: flex;
+            align-items: center;
+            box-shadow: 0 6px 0 rgba(0,0,0,0.3);
+            /* État caché par défaut pour l'animation */
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+            cursor: not-allowed;
+        }
+
+        /* Couleurs spécifiques */
+        #btnA { background-color: var(--color-a); }
+        #btnB { background-color: var(--color-b); }
+        #btnC { background-color: var(--color-c); }
+        #btnD { background-color: var(--color-d); }
+
+        .letter-badge {
+            background: rgba(0,0,0,0.3);
+            width: 40px;
+            height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 50%;
+            margin-right: 15px;
+            font-size: 22px;
+        }
+
+        /* Classes dynamiques gérées par JS */
+        .choice-btn.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .choice-btn.active {
+            cursor: pointer;
+        }
+
+        .choice-btn.active:active {
+            transform: translateY(6px);
+            box-shadow: 0 0 0 rgba(0,0,0,0);
+        }
+
+        .choice-btn.locked {
+            filter: grayscale(100%);
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .choice-btn.selected {
+            border: 4px solid white;
+            filter: grayscale(0%);
+            opacity: 1;
+            transform: scale(1.02);
+            box-shadow: 0 0 20px white;
+        }
+
+        /* Bandeau de statut */
+        #status-bar {
+            text-align: center;
+            padding: 10px;
+            font-weight: bold;
+            border-radius: 8px;
+            margin-top: auto;
+            transition: 0.3s;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="login-screen">
+        <div class="login-box">
+            <h1 style="color: gold; margin-bottom: 30px;">Chamak Chalo</h1>
+            <input id="name" placeholder="Nom de l'équipe" autocomplete="off">
+            <input id="pin" placeholder="PIN de la partie" type="number" autocomplete="off">
+            <button onclick="join()">Rejoindre la partie</button>
+        </div>
     </div>
 
-    <div id="game" style="display:none; padding: 20px;">
-        <h2 id="qText">En attente du Host...</h2>
-        <div id="choices" style="display: flex; flex-direction: column; align-items: center; gap: 10px; margin: 20px 0;">
-            <div id="cA" style="visibility: hidden; background: #333; padding: 10px; width: 80%; border-radius: 5px;">A: <span id="tA"></span></div>
-            <div id="cB" style="visibility: hidden; background: #333; padding: 10px; width: 80%; border-radius: 5px;">B: <span id="tB"></span></div>
-            <div id="cC" style="visibility: hidden; background: #333; padding: 10px; width: 80%; border-radius: 5px;">C: <span id="tC"></span></div>
-            <div id="cD" style="visibility: hidden; background: #333; padding: 10px; width: 80%; border-radius: 5px;">D: <span id="tD"></span></div>
+    <div id="game-screen">
+        <div id="question-header">En attente du lancement...</div>
+        
+        <div class="choices-grid">
+            <button id="btnA" class="choice-btn" onclick="submitAnswer('A')" disabled>
+                <span class="letter-badge">A</span>
+                <span id="textA"></span>
+            </button>
+            <button id="btnB" class="choice-btn" onclick="submitAnswer('B')" disabled>
+                <span class="letter-badge">B</span>
+                <span id="textB"></span>
+            </button>
+            <button id="btnC" class="choice-btn" onclick="submitAnswer('C')" disabled>
+                <span class="letter-badge">C</span>
+                <span id="textC"></span>
+            </button>
+            <button id="btnD" class="choice-btn" onclick="submitAnswer('D')" disabled>
+                <span class="letter-badge">D</span>
+                <span id="textD"></span>
+            </button>
         </div>
-        <button id="buzzBtn" disabled onclick="buzz()" style="width:200px; height:200px; border-radius:50%; background:gray; font-size: 30px; font-weight: bold; border:none; cursor:not-allowed; transition: 0.3s;">BUZZ</button>
+
+        <div id="status-bar">Prêt à jouer !</div>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
+        let isBuzzerLocked = true;
+        let myPin = "";
 
+        // 1. Rejoindre la partie
         function join() {
+            myPin = document.getElementById('pin').value;
             socket.emit('join_game', { 
-                pin: document.getElementById('pin').value, 
+                pin: myPin, 
                 name: document.getElementById('name').value, 
                 role: 'player' 
             });
         }
 
         socket.on('join_success', () => {
-            document.getElementById('login').style.display = 'none';
-            document.getElementById('game').style.display = 'block';
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('game-screen').style.display = 'flex';
         });
 
+        // 2. Affichage de la question avec suspense
         socket.on('display_question', (data) => {
+            // Jouer le son
             new Audio('sounds/pre_question.mp3').play();
-            const btn = document.getElementById('buzzBtn');
-            btn.disabled = true;
-            btn.style.background = 'gray';
-            btn.style.cursor = 'not-allowed';
             
-            document.getElementById('qText').innerText = data.question_text;
+            // Réinitialiser l'UI
+            isBuzzerLocked = true;
+            document.getElementById('status-bar').innerText = "Lecture de la question...";
+            document.getElementById('status-bar').style.background = "#333";
+            document.getElementById('question-header').innerText = data.question_text;
+            
             const letters = ['A', 'B', 'C', 'D'];
-            
             letters.forEach((l) => {
-                document.getElementById(`c${l}`).style.visibility = 'hidden';
-                document.getElementById(`t${l}`).innerText = data[`choice_${l.toLowerCase()}`];
+                const btn = document.getElementById(`btn${l}`);
+                btn.className = "choice-btn"; // Reset des classes
+                btn.disabled = true;
+                document.getElementById(`text${l}`).innerText = data[`choice_${l.toLowerCase()}`];
             });
 
-            // Staggered reveal
-            setTimeout(() => document.getElementById('cA').style.visibility = 'visible', 1000);
-            setTimeout(() => document.getElementById('cB').style.visibility = 'visible', 2000);
-            setTimeout(() => document.getElementById('cC').style.visibility = 'visible', 3000);
+            // Apparition retardée des choix
+            setTimeout(() => document.getElementById('btnA').classList.add('visible'), 1000);
+            setTimeout(() => document.getElementById('btnB').classList.add('visible'), 2000);
+            setTimeout(() => document.getElementById('btnC').classList.add('visible'), 3000);
             setTimeout(() => {
-                document.getElementById('cD').style.visibility = 'visible';
-                btn.disabled = false;
-                btn.style.background = 'red';
-                btn.style.cursor = 'pointer';
+                const btnD = document.getElementById('btnD');
+                btnD.classList.add('visible');
+                
+                // Débloquer les boutons quand tout est affiché (après 4 sec)
+                isBuzzerLocked = false;
+                letters.forEach(l => {
+                    const btn = document.getElementById(`btn${l}`);
+                    btn.disabled = false;
+                    btn.classList.add('active');
+                });
+                document.getElementById('status-bar').innerText = "VITE ! SÉLECTIONNEZ UNE RÉPONSE !";
+                document.getElementById('status-bar').style.background = "orange";
             }, 4000);
         });
 
-        function buzz() {
-            if (!document.getElementById('buzzBtn').disabled) socket.emit('buzz');
+        // 3. Quand le joueur clique sur un choix
+        function submitAnswer(letter) {
+            if (isBuzzerLocked) return;
+            isBuzzerLocked = true; // Empêche de cliquer deux fois
+
+            // Envoyer l'événement buzz au serveur
+            socket.emit('buzz');
+
+            // Mise à jour visuelle : mettre en évidence le choix, griser les autres
+            ['A', 'B', 'C', 'D'].forEach(l => {
+                const btn = document.getElementById(`btn${l}`);
+                btn.classList.remove('active');
+                btn.disabled = true;
+                if (l === letter) {
+                    btn.classList.add('selected');
+                } else {
+                    btn.classList.add('locked');
+                }
+            });
+
+            document.getElementById('status-bar').innerText = "Réponse envoyée ! En attente du résultat...";
+            document.getElementById('status-bar').style.background = "#6c63ff";
         }
 
+        // 4. Réception du gagnant du buzz
         socket.on('buzzer_hit', (winnerId) => {
+            isBuzzerLocked = true; // Verrouiller pour ceux qui ont été trop lents
+            
             if(socket.id === winnerId) {
-                document.getElementById('buzzBtn').style.background = 'green';
+                // Ce joueur a été le plus rapide
+                document.getElementById('status-bar').innerText = "VOUS AVEZ ÉTÉ LE PLUS RAPIDE !";
+                document.getElementById('status-bar').style.background = "green";
             } else {
-                document.getElementById('buzzBtn').style.background = 'gray';
-                document.getElementById('buzzBtn').disabled = true;
+                // Trop lent
+                document.getElementById('status-bar').innerText = "Une autre équipe a été plus rapide...";
+                document.getElementById('status-bar').style.background = "red";
+                // Griser tout l'écran
+                ['A', 'B', 'C', 'D'].forEach(l => document.getElementById(`btn${l}`).classList.add('locked'));
             }
         });
     </script>
