@@ -2,55 +2,83 @@
 <html lang="fr">
 <head>
     <meta charset="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&display=swap" rel="stylesheet">
     <style>
-        body { margin: 0; font-family: sans-serif; background: #111; color: white; text-align: center; }
-        .login { padding: 50px 20px; }
-        input { width: 80%; padding: 15px; margin: 10px; border-radius: 8px; border: 2px solid #333; background: #222; color: white; font-size: 18px; }
-        .btn-join { background: #3b82f6; padding: 15px 40px; border: none; border-radius: 8px; color: white; font-size: 20px; font-weight: bold; }
+        body { margin: 0; font-family: 'Montserrat', sans-serif; background: #111827; color: white; text-align: center; overflow: hidden; -webkit-tap-highlight-color: transparent; }
         
-        #game { display: none; flex-direction: column; height: 100vh; padding: 20px; box-sizing: border-box; }
-        #themeAlert { background: #3b82f6; padding: 10px; border-radius: 5px; font-weight: bold; margin-bottom: 10px; display: none; }
+        /* Connexion */
+        .login { height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 20px; background: radial-gradient(circle at top, #1f2937, #030712); }
+        .title-glow { font-size: 3rem; font-weight: 900; background: linear-gradient(90deg, #f59e0b, #ef4444); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.5)); margin-bottom: 40px; }
+        .input-cool { width: 85%; padding: 18px; margin: 10px 0; border-radius: 15px; border: 2px solid #374151; background: rgba(0,0,0,0.5); color: white; font-size: 1.2rem; font-family: inherit; text-align: center; transition: 0.3s; outline: none;}
+        .input-cool:focus { border-color: #3b82f6; box-shadow: 0 0 15px rgba(59, 130, 246, 0.4); }
+        .btn-join { width: 85%; background: #3b82f6; padding: 20px; border: none; border-radius: 15px; color: white; font-size: 1.5rem; font-weight: 900; margin-top: 20px; box-shadow: 0 8px 0 #1d4ed8; transition: 0.1s; text-transform: uppercase; }
+        .btn-join:active { transform: translateY(8px); box-shadow: 0 0 0 #1d4ed8; }
         
-        #buzzer { width: 200px; height: 200px; border-radius: 50%; background: #444; border: none; color: white; font-size: 40px; font-weight: bold; margin: auto; transition: 0.3s; display: none; }
-        #buzzer.active { background: red; box-shadow: 0 0 30px red; cursor: pointer; }
+        /* Jeu */
+        #game { display: none; flex-direction: column; height: 100vh; padding: 20px; box-sizing: border-box; background: #0f172a; position: relative; }
         
-        #choices { display: none; flex-direction: column; gap: 10px; margin: auto; width: 100%; }
-        .choice-btn { background: #1e293b; padding: 20px; border-radius: 10px; border: 2px solid #334155; color: white; font-size: 18px; text-align: left; }
+        #qText { font-size: 1.3rem; margin: 15px 0; min-height: 60px; line-height: 1.4; color: #f8fafc; }
         
-        #status { padding: 15px; background: #222; border-radius: 8px; font-weight: bold; margin-top: auto; }
-        .overlay-win { position: absolute; top:0; left:0; right:0; bottom:0; background: rgba(34, 197, 94, 0.95); display: none; flex-direction: column; justify-content: center; z-index: 100; font-size: 40px; font-weight: bold; }
+        /* Le Buzzer 3D */
+        .buzzer-container { flex: 1; display: flex; justify-content: center; align-items: center; }
+        .buzzer { width: 250px; height: 250px; border-radius: 50%; background: #ef4444; border: none; color: white; font-size: 3.5rem; font-family: 'Montserrat'; font-weight: 900; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; position: relative; transition: all 0.1s ease; box-shadow: 0 20px 0 #991b1b, 0 30px 40px rgba(0,0,0,0.6); display: none; }
+        .buzzer.ready { display: block; animation: heartbeat 1.5s infinite; }
+        .buzzer.ready:active { transform: translateY(20px); box-shadow: 0 0 0 #991b1b, 0 10px 20px rgba(0,0,0,0.6); background: #dc2626; }
+        @keyframes heartbeat { 0% { transform: scale(1); } 15% { transform: scale(1.05); } 30% { transform: scale(1); } }
+
+        /* Les Choix Kahoot-style */
+        #choices { display: none; grid-template-columns: 1fr 1fr; gap: 15px; flex: 1; width: 100%; margin-top: 20px; }
+        .choice-btn { border: none; border-radius: 12px; color: white; font-size: 1.2rem; font-weight: 800; padding: 20px 10px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 8px 0 rgba(0,0,0,0.2); transition: 0.1s; }
+        .choice-btn:active { transform: translateY(8px); box-shadow: 0 0 0 rgba(0,0,0,0); }
+        .bg-red { background: #e21b3c; box-shadow: 0 8px 0 #a01027; }
+        .bg-blue { background: #1368ce; box-shadow: 0 8px 0 #0c4284; }
+        .bg-yellow { background: #d89e00; box-shadow: 0 8px 0 #8b6600; }
+        .bg-green { background: #26890c; box-shadow: 0 8px 0 #154c06; }
+        .letter-badge { font-size: 2rem; opacity: 0.8; margin-bottom: 5px; }
+
+        #status { padding: 20px; border-radius: 12px; font-size: 1.2rem; font-weight: 900; margin-top: auto; text-transform: uppercase; background: #1e293b; transition: all 0.3s; }
+        
+        .overlay { position: fixed; inset: 0; display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 100; animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes popIn { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        .win-bg { background: rgba(16, 185, 129, 0.95); }
     </style>
 </head>
 <body>
     <div class="login" id="login">
-        <h1 style="color: gold;">Crazy Challenge</h1>
-        <input id="name" placeholder="Nom Équipe">
-        <input id="pin" type="number" placeholder="PIN">
-        <button class="btn-join" onclick="join()">Rejoindre</button>
+        <div class="title-glow">CHAMAK CHALO</div>
+        <input id="name" class="input-cool" placeholder="Nom de l'équipe" autocomplete="off">
+        <input id="pin" type="number" class="input-cool" placeholder="Code PIN" autocomplete="off">
+        <button class="btn-join" onclick="join()">C'est parti !</button>
     </div>
 
     <div id="game">
-        <div id="themeAlert">Le Host a changé le thème pour le prochain tour : <span id="themeName"></span></div>
-        <h3 id="qText">En attente...</h3>
+        <div id="themeAlert" style="color: #fbbf24; font-weight: bold; margin-bottom: 10px; display: none;">Nouveau Thème : <span id="themeName"></span></div>
+        <div id="qText">Regardez l'écran principal...</div>
         
-        <button id="buzzer" onclick="buzz()">BUZZ</button>
+        <div class="buzzer-container" id="buzzer-container">
+            <button class="buzzer" id="buzzer" onclick="buzz()">BUZZ</button>
+        </div>
         
         <div id="choices">
-            <button class="choice-btn" onclick="sendAns('A')">A: <span id="tA"></span></button>
-            <button class="choice-btn" onclick="sendAns('B')">B: <span id="tB"></span></button>
-            <button class="choice-btn" onclick="sendAns('C')">C: <span id="tC"></span></button>
-            <button class="choice-btn" onclick="sendAns('D')">D: <span id="tD"></span></button>
+            <button class="choice-btn bg-red" onclick="sendAns('A')"><span class="letter-badge">A</span><span id="tA"></span></button>
+            <button class="choice-btn bg-blue" onclick="sendAns('B')"><span class="letter-badge">B</span><span id="tB"></span></button>
+            <button class="choice-btn bg-yellow" onclick="sendAns('C')"><span class="letter-badge">C</span><span id="tC"></span></button>
+            <button class="choice-btn bg-green" onclick="sendAns('D')"><span class="letter-badge">D</span><span id="tD"></span></button>
         </div>
 
         <div id="status">Préparez-vous</div>
     </div>
 
-    <div id="winScreen" class="overlay-win">🏆 VICTOIRE ! 🏆<br><span id="winName" style="color:white; font-size: 60px;"></span> a atteint 10 points !</div>
+    <div id="winScreen" class="overlay win-bg">
+        <h1 style="font-size: 4rem; margin: 0;">🏆</h1>
+        <h2 style="font-size: 2.5rem; text-align:center;">CHAMPION!</h2>
+        <h3 id="winName" style="font-size: 3rem; color: #ffe4e6; text-transform: uppercase;"></h3>
+    </div>
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
-        let isLocked = false; // Vrai si le joueur a eu faux à cette question
+        let isLocked = false;
 
         function join() {
             socket.emit('join_game', { pin: document.getElementById('pin').value, name: document.getElementById('name').value, role: 'player' });
@@ -66,65 +94,67 @@
         socket.on('display_question', (data) => {
             isLocked = false;
             document.getElementById('themeAlert').style.display = 'none';
-            document.getElementById('buzzer').style.display = 'block';
-            document.getElementById('buzzer').className = '';
+            document.getElementById('buzzer').classList.remove('ready');
+            document.getElementById('buzzer-container').style.display = 'flex';
             document.getElementById('choices').style.display = 'none';
-            document.getElementById('qText').innerText = data.question_text;
             
+            document.getElementById('qText').innerText = data.question_text;
             ['A','B','C','D'].forEach(l => document.getElementById(`t${l}`).innerText = data[`choice_${l.toLowerCase()}`]);
-            document.getElementById('status').innerText = "Lecture de la question...";
-            document.getElementById('status').style.background = "#333";
+            
+            document.getElementById('status').innerText = "Lisez la question...";
+            document.getElementById('status').style.background = "#334155";
+            document.getElementById('status').style.color = "white";
 
-            setTimeout(() => { activateBuzzer(); }, 4000);
+            setTimeout(() => { 
+                if(!isLocked) {
+                    document.getElementById('buzzer').classList.add('ready');
+                    document.getElementById('status').innerText = "CLIQUEZ !";
+                    document.getElementById('status').style.background = "#ef4444";
+                }
+            }, 4000);
         });
 
-        function activateBuzzer() {
-            if(!isLocked) {
-                document.getElementById('buzzer').classList.add('active');
-                document.getElementById('status').innerText = "BUZZEZ !";
-                document.getElementById('status').style.background = "#b91c1c";
-            }
-        }
-
         function buzz() {
-            if (document.getElementById('buzzer').classList.contains('active')) socket.emit('buzz');
+            if (document.getElementById('buzzer').classList.contains('ready')) socket.emit('buzz');
         }
 
         socket.on('buzzer_hit', (data) => {
-            document.getElementById('buzzer').classList.remove('active');
+            document.getElementById('buzzer').classList.remove('ready');
             if (socket.id === data.winnerId) {
-                document.getElementById('buzzer').style.display = 'none';
-                document.getElementById('choices').style.display = 'flex';
-                document.getElementById('status').innerText = "VOTRE TOUR : Choisissez !";
+                document.getElementById('buzzer-container').style.display = 'none';
+                document.getElementById('choices').style.display = 'grid';
+                document.getElementById('status').innerText = "CHOISISSEZ VITE !";
                 document.getElementById('status').style.background = "#3b82f6";
             } else {
-                document.getElementById('status').innerText = `${data.name} a buzzé !`;
-                document.getElementById('status').style.background = "#444";
+                document.getElementById('status').innerText = `Trop lent ! ${data.name} a buzzé.`;
+                document.getElementById('status').style.background = "#475569";
             }
         });
 
         function sendAns(l) {
             socket.emit('submit_answer', l);
             document.getElementById('choices').style.display = 'none';
-            document.getElementById('buzzer').style.display = 'block';
-            document.getElementById('status').innerText = "Réponse envoyée...";
+            document.getElementById('buzzer-container').style.display = 'flex';
+            document.getElementById('status').innerText = "Envoi...";
         }
 
         socket.on('answer_correct', (data) => {
-            document.getElementById('status').innerText = `✅ VRAI ! Score de ${data.name} : ${data.score}`;
-            document.getElementById('status').style.background = "#22c55e";
+            document.getElementById('status').innerText = `✅ EXCELLENT ! SCORE: ${data.score}`;
+            document.getElementById('status').style.background = "#10b981";
         });
 
         socket.on('answer_wrong', (data) => {
-            document.getElementById('status').innerText = `❌ FAUX pour ${data.name}. Score : ${data.score}`;
+            document.getElementById('status').innerText = `❌ ERREUR ! SCORE: ${data.score}`;
             document.getElementById('status').style.background = "#ef4444";
             
             if (socket.id === data.lockedId) {
                 isLocked = true;
-                document.getElementById('status').innerText += " (Vous êtes bloqué pour cette question)";
+                document.getElementById('status').innerText += " (Bloqué)";
             } else {
-                // Relance du buzzer pour les autres !
-                setTimeout(() => activateBuzzer(), 1500); 
+                setTimeout(() => {
+                    document.getElementById('buzzer').classList.add('ready');
+                    document.getElementById('status').innerText = "REBOND ! BUZZEZ !";
+                }, 1500); 
             }
         });
 

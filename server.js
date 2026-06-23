@@ -21,13 +21,13 @@ io.on('connection', (socket) => {
     
     socket.on('admin_create_game', () => {
         const pin = Math.floor(1000 + Math.random() * 9000).toString();
-        activeGames[pin] = {
+       activeGames[pin] = {
             admin: socket.id,
-            players: {}, // { socketId: { name, score } }
-            lockedPlayers: [], // Joueurs qui ont faux à la question actuelle
+            players: {},
+            lockedPlayers: [],
             status: 'lobby',
-            currentTheme: 'Général',
-            nextTheme: 'Général',
+            currentTheme: 'Programmation', // <-- LE FIX EST ICI
+            nextTheme: 'Programmation',    // <-- LE FIX EST ICI
             buzzedPlayerId: null
         };
         socket.join(pin);
