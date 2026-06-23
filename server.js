@@ -23,9 +23,12 @@ io.on('connection', (socket) => {
         const pin = Math.floor(1000 + Math.random() * 9000).toString();
         activeGames[pin] = {
             admin: socket.id,
-            players: {},
+            players: {}, // { socketId: { name, score } }
+            lockedPlayers: [], // Joueurs qui ont faux à la question actuelle
             status: 'lobby',
-            currentQuestion: null
+            currentTheme: 'Général',
+            nextTheme: 'Général',
+            buzzedPlayerId: null
         };
         socket.join(pin);
         socket.emit('game_created', { pin });
@@ -37,71 +40,96 @@ io.on('connection', (socket) => {
             socket.join(pin);
             socket.gamePin = pin;
             socket.role = role;
-            socket.playerName = name;
 
             if (role === 'player') {
                 activeGames[pin].players[socket.id] = { name, score: 0 };
-                io.to(activeGames[pin].admin).emit('player_joined', name);
+                io.to(activeGames[pin].admin).emit('update_players', activeGames[pin].players);
             }
             socket.emit('join_success', { role });
         }
     });
 
+    // Le Host change le thème pour la SUIVANTE
+    socket.on('change_theme', (data) => {
+        const { pin, theme } = data;
+        if (activeGames[pin]) {
+            activeGames[pin].nextTheme = theme;
+            io.to(pin).emit('theme_notification', theme);
+        }
+    });
+
     socket.on('admin_action_next', async (data) => {
         const { pin } = data;
-        if (!activeGames[pin]) return;
+        const game = activeGames[pin];
+        if (!game) return;
+
+        // Appliquer le changement de thème s'il y en a eu un
+        game.currentTheme = game.nextTheme;
+        game.lockedPlayers = []; // Réinitialiser les pénalités pour la nouvelle question
+        game.buzzedPlayerId = null;
 
         try {
-            const result = await pool.query('SELECT * FROM questions ORDER BY RANDOM() LIMIT 1');
+            const result = await pool.query('SELECT * FROM questions WHERE theme = $1 ORDER BY RANDOM() LIMIT 1', [game.currentTheme]);
             if (result.rows.length > 0) {
                 const q = result.rows[0];
-                activeGames[pin].status = 'reading';
-                activeGames[pin].currentQuestion = q;
+                game.status = 'reading';
 
-                // 1. Envoyer la question COMPLÈTE (avec solution) à l'Admin
-                io.to(activeGames[pin].admin).emit('admin_display_question', q);
-
-                // 2. Envoyer la question SÉCURISÉE (sans solution) aux joueurs/spectateurs
-                const safeQ = { 
-                    question_text: q.question_text, 
-                    choice_a: q.choice_a, choice_b: q.choice_b, 
-                    choice_c: q.choice_c, choice_d: q.choice_d 
-                };
+                io.to(game.admin).emit('admin_display_question', q);
+                
+                const safeQ = { question_text: q.question_text, choice_a: q.choice_a, choice_b: q.choice_b, choice_c: q.choice_c, choice_d: q.choice_d };
                 io.to(pin).emit('display_question', safeQ);
 
-                setTimeout(() => {
-                    if (activeGames[pin]) activeGames[pin].status = 'waiting_for_buzz';
-                }, 4000);
+                setTimeout(() => { if (game) game.status = 'waiting_for_buzz'; }, 4000);
             }
         } catch (err) { console.error(err); }
     });
 
-    // Le joueur appuie sur le Buzz
     socket.on('buzz', () => {
         const pin = socket.gamePin;
-        if (!pin || !activeGames[pin] || activeGames[pin].status !== 'waiting_for_buzz') return;
+        const game = activeGames[pin];
+        // Bloquer si le jeu n'est pas en attente, ou si le joueur a déjà eu faux à cette question
+        if (!game || game.status !== 'waiting_for_buzz' || game.lockedPlayers.includes(socket.id)) return;
 
-        activeGames[pin].status = 'answering'; // Bloque les autres buzzers
-        const playerName = activeGames[pin].players[socket.id].name;
+        game.status = 'answering';
+        game.buzzedPlayerId = socket.id;
         
-        io.to(pin).emit('buzzer_hit', socket.id); 
-        io.to(activeGames[pin].admin).emit('player_buzzed', playerName);
+        io.to(pin).emit('buzzer_hit', { winnerId: socket.id, name: game.players[socket.id].name }); 
     });
 
-    // Le joueur sélectionne A, B, C ou D après avoir buzzé
     socket.on('submit_answer', (answer) => {
         const pin = socket.gamePin;
-        if (!pin || !activeGames[pin] || activeGames[pin].status !== 'answering') return;
+        const game = activeGames[pin];
+        if (!game || game.status !== 'answering' || game.buzzedPlayerId !== socket.id) return;
         
-        const playerName = activeGames[pin].players[socket.id].name;
-        io.to(activeGames[pin].admin).emit('player_answered', { name: playerName, answer });
-        io.to(pin).emit('spectator_answer_locked', { name: playerName, answer }); // Pour l'écran géant
+        io.to(game.admin).emit('player_answered', { name: game.players[socket.id].name, answer });
+        io.to(pin).emit('spectator_answer_locked', { name: game.players[socket.id].name, answer });
     });
 
     socket.on('admin_validate', (data) => {
         const { pin, isCorrect } = data;
-        io.to(pin).emit('answer_result', isCorrect);
-        if (activeGames[pin]) activeGames[pin].status = 'lobby'; 
+        const game = activeGames[pin];
+        const pId = game.buzzedPlayerId;
+        const pName = game.players[pId].name;
+
+        if (isCorrect) {
+            game.players[pId].score += 1;
+            if (game.players[pId].score >= 10) {
+                io.to(pin).emit('game_over', { name: pName, score: game.players[pId].score });
+                game.status = 'finished';
+            } else {
+                io.to(pin).emit('answer_correct', { name: pName, score: game.players[pId].score });
+                game.status = 'lobby';
+            }
+            io.to(game.admin).emit('update_players', game.players);
+        } else {
+            game.players[pId].score -= 1;
+            game.lockedPlayers.push(pId); // Il ne peut plus buzzer sur cette question
+            io.to(pin).emit('answer_wrong', { name: pName, score: game.players[pId].score, lockedId: pId });
+            io.to(game.admin).emit('update_players', game.players);
+            
+            game.status = 'waiting_for_buzz'; // Relance pour les autres
+            game.buzzedPlayerId = null;
+        }
     });
 });
 

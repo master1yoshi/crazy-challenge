@@ -2,33 +2,27 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Grand Écran</title>
     <style>
-        body { background: radial-gradient(circle, #1a1a2e, #0f0f1a); color: white; text-align: center; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 50px; overflow: hidden; }
-        
-        #qText { font-size: 60px; font-weight: bold; color: #fbbf24; margin-bottom: 50px; text-shadow: 0 5px 15px rgba(0,0,0,0.8); }
-        
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; width: 90%; margin: auto; }
-        .choice { background: rgba(255,255,255,0.05); border: 3px solid rgba(255,255,255,0.2); padding: 30px; font-size: 40px; border-radius: 20px; opacity: 0; transition: 0.5s; }
-        
-        .choice.visible { opacity: 1; transform: translateY(0); }
-        .choice.selected { background: #3b82f6; border-color: #60a5fa; box-shadow: 0 0 30px #3b82f6; transform: scale(1.05); }
-
-        #actionBox { margin-top: 50px; font-size: 50px; font-weight: bold; height: 100px; text-transform: uppercase; }
-        
-        .pulse-text { animation: blink 1s infinite; color: #ef4444; text-shadow: 0 0 20px red; }
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        body { background: #0a0a1a; color: white; text-align: center; font-family: sans-serif; overflow: hidden; margin:0; padding: 20px;}
+        #qText { font-size: 50px; font-weight: bold; color: #fbbf24; margin: 30px 0; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; width: 80%; margin: auto; }
+        .choice { background: #1e293b; padding: 30px; font-size: 35px; border-radius: 15px; border: 2px solid #334155; opacity: 0; transition: 0.5s; }
+        .choice.visible { opacity: 1; }
+        .choice.selected { background: #3b82f6; border-color: #60a5fa; transform: scale(1.05); }
+        #actionBox { margin-top: 40px; font-size: 45px; font-weight: bold; padding: 20px; border-radius: 10px; }
+        #themeBox { position: absolute; top: 20px; right: 20px; background: #3b82f6; padding: 15px; border-radius: 10px; font-size: 25px; font-weight: bold; display: none; }
+        .win { font-size: 80px; color: #4ade80; text-shadow: 0 0 30px #4ade80; position: absolute; top: 30%; left: 0; width: 100%; background: rgba(0,0,0,0.9); padding: 50px 0; z-index: 10; display: none;}
     </style>
 </head>
 <body>
     <div id="setup">
-        <h1>Écran Spectateur</h1>
-        <input id="pin" placeholder="PIN" style="font-size:30px; padding:10px; text-align:center;"><br><br>
-        <button onclick="join()" style="font-size:30px; padding:10px 30px; cursor:pointer;">Afficher</button>
+        <input id="pin" placeholder="PIN" style="font-size:30px; padding:10px;"><br><br>
+        <button onclick="join()" style="font-size:30px; padding:10px 30px;">Afficher</button>
     </div>
 
     <div id="game" style="display: none;">
-        <div id="qText">Préparez-vous...</div>
+        <div id="themeBox">Prochain thème : <span id="themeName"></span></div>
+        <div id="qText">En attente de la question...</div>
         
         <div class="grid">
             <div id="cA" class="choice">A: <span id="tA"></span></div>
@@ -38,6 +32,7 @@
         </div>
 
         <div id="actionBox"></div>
+        <div id="winScreen" class="win">🏆 <span id="winName"></span> REMPORTE LA PARTIE AVEC 10 POINTS ! 🏆</div>
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
@@ -49,38 +44,47 @@
             document.getElementById('game').style.display = 'block';
         }
 
+        socket.on('theme_notification', (theme) => {
+            document.getElementById('themeBox').style.display = 'block';
+            document.getElementById('themeName').innerText = theme;
+        });
+
         socket.on('display_question', (data) => {
-            document.getElementById('actionBox').className = '';
-            document.getElementById('actionBox').innerHTML = '';
+            document.getElementById('themeBox').style.display = 'none';
+            document.getElementById('actionBox').innerText = '';
+            document.getElementById('actionBox').style.background = 'transparent';
             document.getElementById('qText').innerText = data.question_text;
             
-            ['A','B','C','D'].forEach((l, index) => {
+            ['A','B','C','D'].forEach((l, i) => {
                 const el = document.getElementById(`c${l}`);
-                el.className = 'choice'; // Reset classes
+                el.className = 'choice'; 
                 document.getElementById(`t${l}`).innerText = data[`choice_${l.toLowerCase()}`];
-                setTimeout(() => el.classList.add('visible'), (index + 1) * 1000);
+                setTimeout(() => el.classList.add('visible'), (i + 1) * 1000);
             });
         });
 
-        // Quand quelqu'un buzz
         socket.on('spectator_answer_locked', (data) => {
-            const box = document.getElementById('actionBox');
-            box.innerHTML = `${data.name} A CHOISI : ${data.answer}`;
-            box.style.color = "#60a5fa";
-            
-            // Met en évidence la réponse sur l'écran géant
+            document.getElementById('actionBox').innerText = `⚡ ${data.name} A CHOISI LA RÉPONSE : ${data.answer}`;
+            document.getElementById('actionBox').style.background = 'rgba(59, 130, 246, 0.3)';
             document.getElementById(`c${data.answer}`).classList.add('selected');
         });
 
-        socket.on('answer_result', (isCorrect) => {
-            const box = document.getElementById('actionBox');
-            if(isCorrect) {
-                 box.innerText = "✅ BONNE RÉPONSE !";
-                 box.style.color = "#4ade80"; 
-            } else {
-                 box.innerText = "❌ MAUVAISE RÉPONSE !";
-                 box.style.color = "#f87171";
-            }
+        socket.on('answer_correct', (data) => {
+            document.getElementById('actionBox').innerText = `✅ BONNE RÉPONSE ! Score de ${data.name} : ${data.score}`;
+            document.getElementById('actionBox').style.background = 'rgba(34, 197, 94, 0.3)';
+            document.getElementById('actionBox').style.color = '#4ade80';
+        });
+
+        socket.on('answer_wrong', (data) => {
+            document.getElementById('actionBox').innerText = `❌ FAUX ! Score de ${data.name} : ${data.score}. BUZZER RÉACTIVÉ !`;
+            document.getElementById('actionBox').style.background = 'rgba(239, 68, 68, 0.3)';
+            document.getElementById('actionBox').style.color = '#f87171';
+            ['A','B','C','D'].forEach((l) => document.getElementById(`c${l}`).classList.remove('selected'));
+        });
+
+        socket.on('game_over', (data) => {
+            document.getElementById('winScreen').style.display = 'block';
+            document.getElementById('winName').innerText = data.name;
         });
     </script>
 </body>
