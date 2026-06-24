@@ -8,7 +8,7 @@ const io = new Server(server);
 
 app.use(express.static('public'));
 
-// TES QUESTIONS DIRECTEMENT DANS LE SERVEUR (0% de chance d'erreur de connexion)
+// QUESTIONS DIRECTEMENT EN MÉMOIRE (Zéro risque de plantage)
 const crazyChallengeQuestions = [
   {"theme": "Sport", "question": "Combien de temps dure un match de football (sans prolongations) ?", "options": ["80 min", "90 min", "100 min", "120 min"], "answer": "90 min", "points": 10},
   {"theme": "Sport", "question": "Quel sport utilise un volant ?", "options": ["Tennis", "Badminton", "Squash", "Ping-pong"], "answer": "Badminton", "points": 10},
@@ -123,6 +123,8 @@ io.on('connection', (socket) => {
 
             if (role === 'player') {
                 activeGames[pin].players[socket.id] = { name, score: 0 };
+                // Mise à jour pour le Host ET les Spectateurs
+                io.to(pin).emit('update_players', activeGames[pin].players);
                 io.to(activeGames[pin].admin).emit('update_players', activeGames[pin].players);
             }
             socket.emit('join_success', { role });
@@ -146,14 +148,11 @@ io.on('connection', (socket) => {
         game.lockedPlayers = [];
         game.buzzedPlayerId = null;
 
-        // 1. Filtrer les questions par le thème choisi
         const themeQuestions = crazyChallengeQuestions.filter(q => q.theme === game.currentTheme);
 
         if (themeQuestions.length > 0) {
-            // 2. Choisir une question au hasard
             const randomQ = themeQuestions[Math.floor(Math.random() * themeQuestions.length)];
             
-            // 3. Formater les données pour correspondre exactement à ce qu'attend le HTML
             const letters = ['A', 'B', 'C', 'D'];
             const correctIndex = randomQ.options.indexOf(randomQ.answer);
             const correctLetter = letters[correctIndex];
@@ -169,10 +168,8 @@ io.on('connection', (socket) => {
 
             game.status = 'reading';
 
-            // Envoi à l'admin (avec la réponse)
             io.to(game.admin).emit('admin_display_question', formattedQ);
             
-            // Envoi aux joueurs et spectateurs (sans la réponse)
             const safeQ = { 
                 question_text: formattedQ.question_text, 
                 choice_a: formattedQ.choice_a, 
@@ -213,7 +210,6 @@ io.on('connection', (socket) => {
         const game = activeGames[pin];
         const pId = game.buzzedPlayerId;
         
-        // Sécurité si le joueur a quitté
         if(!pId || !game.players[pId]) return;
 
         const pName = game.players[pId].name;
@@ -227,15 +223,37 @@ io.on('connection', (socket) => {
                 io.to(pin).emit('answer_correct', { name: pName, score: game.players[pId].score });
                 game.status = 'lobby';
             }
+            // Envoi des scores mis à jour
+            io.to(pin).emit('update_players', game.players);
             io.to(game.admin).emit('update_players', game.players);
         } else {
             game.players[pId].score -= 1;
             game.lockedPlayers.push(pId);
-            io.to(pin).emit('answer_wrong', { name: pName, score: game.players[pId].score, lockedId: pId });
-            io.to(game.admin).emit('update_players', game.players);
             
-            game.status = 'waiting_for_buzz';
-            game.buzzedPlayerId = null;
+            // Envoi des scores mis à jour
+            io.to(pin).emit('update_players', game.players);
+            io.to(game.admin).emit('update_players', game.players);
+
+            const totalPlayers = Object.keys(game.players).length;
+            if (totalPlayers <= 1 || game.lockedPlayers.length >= totalPlayers) {
+                io.to(pin).emit('answer_wrong_all', { name: pName, score: game.players[pId].score });
+                game.status = 'lobby'; 
+                game.buzzedPlayerId = null;
+            } else {
+                io.to(pin).emit('answer_wrong', { name: pName, score: game.players[pId].score, lockedId: pId });
+                game.status = 'waiting_for_buzz';
+                game.buzzedPlayerId = null;
+            }
+        }
+    });
+    
+    socket.on('disconnect', () => {
+        // Optionnel : Nettoyage lors de la déconnexion
+        const pin = socket.gamePin;
+        if (pin && activeGames[pin] && activeGames[pin].players[socket.id]) {
+            delete activeGames[pin].players[socket.id];
+            io.to(pin).emit('update_players', activeGames[pin].players);
+            io.to(activeGames[pin].admin).emit('update_players', activeGames[pin].players);
         }
     });
 });

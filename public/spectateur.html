@@ -6,32 +6,48 @@
     <style>
         body { margin: 0; font-family: 'Montserrat', sans-serif; background: #020617; color: white; text-align: center; overflow: hidden; height: 100vh; display: flex; flex-direction: column; justify-content: center; }
         
-        /* Background animé dynamique */
         .bg-glow { position: absolute; width: 600px; height: 600px; background: radial-gradient(circle, rgba(59,130,246,0.2) 0%, transparent 70%); top: -200px; left: -200px; z-index: -1; animation: float 10s infinite alternate ease-in-out; }
         .bg-glow2 { position: absolute; width: 800px; height: 800px; background: radial-gradient(circle, rgba(139,92,246,0.15) 0%, transparent 70%); bottom: -300px; right: -200px; z-index: -1; animation: float 12s infinite alternate-reverse ease-in-out; }
         @keyframes float { 0% { transform: translate(0,0); } 100% { transform: translate(100px, 100px); } }
 
-        #setup { display: flex; flex-direction: column; align-items: center; z-index: 10; }
+        #setup { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; z-index: 10; }
+        .animated-text { 
+            font-size: 5rem; font-weight: 900; margin-bottom: 40px;
+            background: linear-gradient(90deg, #ff0000, #ffff00, #3b82f6, #ff0000); 
+            background-size: 300% auto;
+            color: transparent; -webkit-background-clip: text; background-clip: text;
+            animation: shine 3s linear infinite, shake 2s cubic-bezier(.36,.07,.19,.97) both infinite;
+        }
+        @keyframes shine { to { background-position: 300% center; } }
+        @keyframes shake { 
+            0%, 100% { transform: translate3d(0, 0, 0); } 
+            10%, 30%, 50%, 70%, 90% { transform: translate3d(-3px, 0, 0); } 
+            20%, 40%, 60%, 80% { transform: translate3d(3px, 0, 0); } 
+        }
+
         .setup-input { font-size: 2rem; padding: 20px; border-radius: 15px; border: 2px solid #334155; background: rgba(0,0,0,0.5); color: white; text-align: center; margin-bottom: 20px; outline: none; font-family: 'Montserrat'; font-weight: 900;}
         .setup-btn { font-size: 2rem; padding: 20px 50px; background: linear-gradient(135deg, #3b82f6, #8b5cf6); border: none; border-radius: 15px; color: white; font-weight: 900; cursor: pointer; box-shadow: 0 10px 30px rgba(59, 130, 246, 0.4); transition: 0.3s;}
-        .setup-btn:hover { transform: scale(1.05); }
-
-        #game { display: none; width: 90%; margin: 0 auto; z-index: 10; }
         
-        #themeBox { display: inline-block; background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); padding: 15px 40px; border-radius: 50px; border: 1px solid rgba(255,255,255,0.2); font-size: 1.8rem; font-weight: 900; color: #a78bfa; margin-bottom: 30px; letter-spacing: 2px; text-transform: uppercase; display: none; animation: slideDown 0.5s ease; }
-        @keyframes slideDown { from { transform: translateY(-50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-
+        #game { display: none; width: 90%; margin: 0 auto; z-index: 10; padding-bottom: 80px;}
+        
         #qText { font-size: 3.5rem; font-weight: 900; color: #f8fafc; margin-bottom: 50px; text-shadow: 0 10px 20px rgba(0,0,0,0.5); line-height: 1.3; min-height: 150px; }
         
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
-        .choice { background: rgba(30, 41, 59, 0.8); backdrop-filter: blur(10px); padding: 40px; font-size: 2.5rem; border-radius: 20px; border: 2px solid #334155; opacity: 0; transform: translateY(50px); transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); display: flex; align-items: center; }
+        .choice { background: rgba(30, 41, 59, 0.8); backdrop-filter: blur(10px); padding: 40px; font-size: 2.5rem; border-radius: 20px; border: 2px solid #334155; opacity: 0; transform: translateY(50px); transition: all 0.4s; display: flex; align-items: center; }
         .choice span.letter { font-size: 3rem; background: rgba(255,255,255,0.1); padding: 10px 25px; border-radius: 15px; margin-right: 20px; color: #cbd5e1;}
         .choice.visible { opacity: 1; transform: translateY(0); }
         .choice.selected { background: #3b82f6; border-color: #60a5fa; box-shadow: 0 0 50px rgba(59, 130, 246, 0.6); transform: scale(1.05); z-index: 20; }
 
-        #actionBox { margin-top: 50px; font-size: 3rem; font-weight: 900; padding: 30px; border-radius: 20px; text-transform: uppercase; transition: 0.3s; opacity: 0; }
-        #actionBox.show { opacity: 1; animation: popAlert 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        #actionBox { margin-top: 50px; font-size: 2.5rem; font-weight: 900; padding: 30px; border-radius: 20px; text-transform: uppercase; transition: 0.3s; opacity: 0; }
+        #actionBox.show { opacity: 1; animation: popAlert 0.5s; }
         @keyframes popAlert { from { transform: scale(0.8); } to { transform: scale(1); } }
+        
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+        /* NOUVEAU: Le tableau des scores en direct en bas */
+        #scoreboard { position: fixed; bottom: 20px; left: 0; width: 100%; display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; z-index: 50; }
+        .score-badge { background: rgba(255,255,255,0.1); backdrop-filter: blur(5px); padding: 10px 25px; border-radius: 30px; border: 2px solid rgba(255,255,255,0.2); font-weight: 900; font-size: 1.8rem; box-shadow: 0 4px 15px rgba(0,0,0,0.5); text-transform: uppercase; }
+        .score-val { color: #4ade80; margin-left: 10px; }
 
         .win-screen { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 100; display: none; flex-direction: column; justify-content: center; align-items: center; }
         .win-title { font-size: 6rem; color: #fbbf24; text-shadow: 0 0 50px #fbbf24; margin: 0; animation: bounce 2s infinite; }
@@ -44,12 +60,12 @@
     <div class="bg-glow2"></div>
 
     <div id="setup">
+        <div class="animated-text">CRAZY CHALLENGE</div>
         <input id="pin" class="setup-input" placeholder="ENTREZ LE PIN" autocomplete="off">
         <button onclick="join()" class="setup-btn">LANCER L'AFFICHAGE</button>
     </div>
 
     <div id="game">
-        <div id="themeBox">Thème : <span id="themeName"></span></div>
         <div id="qText">Le quiz va commencer...</div>
         
         <div class="grid">
@@ -62,6 +78,8 @@
         <div id="actionBox"></div>
     </div>
 
+    <div id="scoreboard"></div>
+
     <div id="winScreen" class="win-screen">
         <h1 class="win-title">🏆 VAINQUEUR 🏆</h1>
         <div id="winName" class="win-name"></div>
@@ -71,22 +89,27 @@
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
+
         function join() {
             socket.emit('join_game', { pin: document.getElementById('pin').value, name: 'Spectateur', role: 'spectateur' });
             document.getElementById('setup').style.display = 'none';
             document.getElementById('game').style.display = 'block';
+            new Audio('sounds/start_game.mp3').play();
         }
 
-        socket.on('theme_notification', (theme) => {
-            document.getElementById('themeBox').style.display = 'inline-block';
-            document.getElementById('themeName').innerText = theme;
+        // Mise à jour des scores en direct
+        socket.on('update_players', (players) => {
+            const board = document.getElementById('scoreboard');
+            board.innerHTML = "";
+            for (let id in players) {
+                board.innerHTML += `<div class="score-badge">${players[id].name} <span class="score-val">${players[id].score}</span></div>`;
+            }
         });
 
         socket.on('display_question', (data) => {
-            document.getElementById('themeBox').style.display = 'none';
+            new Audio('sounds/pre_question.mp3').play(); // SON LECTURE QUESTION
             const actionBox = document.getElementById('actionBox');
             actionBox.className = '';
-            
             document.getElementById('qText').innerText = data.question_text;
             
             ['A','B','C','D'].forEach((l, i) => {
@@ -95,11 +118,15 @@
                 document.getElementById(`t${l}`).innerText = data[`choice_${l.toLowerCase()}`];
                 setTimeout(() => el.classList.add('visible'), (i + 1) * 800);
             });
+
+            // Son de suspense pendant les choix
+            setTimeout(() => { new Audio('sounds/question_timer.mp3').play(); }, 4000); 
         });
 
         socket.on('spectator_answer_locked', (data) => {
+            new Audio('sounds/buzz_sound.mp3').play(); // SON DU BUZZ
             const actionBox = document.getElementById('actionBox');
-            actionBox.innerText = `⚡ ${data.name} TENTE LA RÉPONSE ${data.answer} !`;
+            actionBox.innerHTML = `⚡ ${data.name} A CHOISI LA RÉPONSE ${data.answer} !<br><span style="color:#fde047; font-size:2rem; animation: pulse 1s infinite;">EST-CE QUE C'EST VRAI ? 🤔</span>`;
             actionBox.style.background = 'rgba(59, 130, 246, 0.2)';
             actionBox.style.color = '#60a5fa';
             actionBox.style.border = '2px solid #60a5fa';
@@ -109,8 +136,9 @@
         });
 
         socket.on('answer_correct', (data) => {
+            new Audio('sounds/applause.mp3').play(); // SON D'APPLAUDISSEMENT
             const actionBox = document.getElementById('actionBox');
-            actionBox.innerText = `✅ BONNE RÉPONSE ! (${data.score} PTS)`;
+            actionBox.innerHTML = `✅ OUI ! BONNE RÉPONSE ! <br><span style="font-size:1.5rem;">Score de ${data.name} : ${data.score} PTS</span>`;
             actionBox.style.background = 'rgba(16, 185, 129, 0.2)';
             actionBox.style.color = '#34d399';
             actionBox.style.border = '2px solid #34d399';
@@ -118,15 +146,24 @@
 
         socket.on('answer_wrong', (data) => {
             const actionBox = document.getElementById('actionBox');
-            actionBox.innerText = `❌ FAUX ! BUZZER OUVERT POUR LES AUTRES !`;
+            actionBox.innerHTML = `❌ FAUX ! <br><span style="font-size:1.5rem;">BUZZER OUVERT POUR LES AUTRES ÉQUIPES !</span>`;
             actionBox.style.background = 'rgba(239, 68, 68, 0.2)';
             actionBox.style.color = '#f87171';
             actionBox.style.border = '2px solid #f87171';
-            
+            ['A','B','C','D'].forEach((l) => document.getElementById(`c${l}`).classList.remove('selected'));
+        });
+
+        socket.on('answer_wrong_all', (data) => {
+            const actionBox = document.getElementById('actionBox');
+            actionBox.innerHTML = `❌ FAUX ! <br><span style="font-size:1.5rem;">PERSONNE NE MARQUE DE POINTS. QUESTION SUIVANTE !</span>`;
+            actionBox.style.background = 'rgba(239, 68, 68, 0.2)';
+            actionBox.style.color = '#f87171';
+            actionBox.style.border = '2px solid #f87171';
             ['A','B','C','D'].forEach((l) => document.getElementById(`c${l}`).classList.remove('selected'));
         });
 
         socket.on('game_over', (data) => {
+            new Audio('sounds/applause.mp3').play(); 
             document.getElementById('winScreen').style.display = 'flex';
             document.getElementById('winName').innerText = data.name;
         });
