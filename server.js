@@ -65,7 +65,7 @@ io.on('connection', (socket) => {
 
         // Appliquer le changement de thème s'il y en a eu un
         game.currentTheme = game.nextTheme;
-        game.lockedPlayers = []; // Réinitialiser les pénalités pour la nouvelle question
+        game.lockedPlayers = []; // Réinitialiser les pénalités
         game.buzzedPlayerId = null;
 
         try {
@@ -79,7 +79,10 @@ io.on('connection', (socket) => {
                 const safeQ = { question_text: q.question_text, choice_a: q.choice_a, choice_b: q.choice_b, choice_c: q.choice_c, choice_d: q.choice_d };
                 io.to(pin).emit('display_question', safeQ);
 
-                setTimeout(() => { if (game) game.status = 'waiting_for_buzz'; }, 4000);
+                setTimeout(() => { if (activeGames[pin]) activeGames[pin].status = 'waiting_for_buzz'; }, 4000);
+            } else {
+                // LA SÉCURITÉ : Si la base de données est vide pour ce thème !
+                io.to(game.admin).emit('admin_error', `Aucune question trouvée pour le thème : ${game.currentTheme}. Avez-vous exécuté node seed.js ?`);
             }
         } catch (err) { console.error(err); }
     });

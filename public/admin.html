@@ -146,6 +146,10 @@
             document.getElementById('validBtns').style.display = 'none';
             document.getElementById('buzzArea').style.display = 'none';
         }
+        socket.on('admin_error', (msg) => {
+    alert("⚠️ ERREUR SYSTÈME : " + msg);
+    document.getElementById('btnNext').innerText = "Réessayer";
+});
     </script>
 </body>
 </html>
