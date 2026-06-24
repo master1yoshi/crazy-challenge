@@ -1,6 +1,0 @@
-{
-  "cinema": [{"text": "Question 1", "answer": true}, {"text": "Question 2", "answer": true}],
-  "sport": [{"text": "Question 1", "answer": true}, {"text": "Question 2", "answer": true}],
-  "histoire": [{"text": "Question 1", "answer": true}, {"text": "Question 2", "answer": true}],
-  "geographie": [{"text": "Question 1", "answer": true}, {"text": "Question 2", "answer": true}]
-}

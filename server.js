@@ -9,9 +9,8 @@ const io = new Server(server);
 
 app.use(express.static('public'));
 
-// === CONNEXION À LA VRAIE BASE DE DONNÉES POSTGRESQL (Obligatoire pour la note) ===
+// Connexion à la base de données (Neon)
 const pool = new Pool({
-    // On met le lien en dur pour garantir que ça marche partout (PC et Render) sans erreur
     connectionString: "postgresql://neondb_owner:npg_c5Qx4uYTzrGL@ep-gentle-breeze-astxg7t4.c-4.eu-central-1.aws.neon.tech/neondb?sslmode=require",
     ssl: { rejectUnauthorized: false }
 });
@@ -59,7 +58,6 @@ io.on('connection', (socket) => {
         }
     });
 
-    // C'EST ICI QUE LE SERVEUR VA CHERCHER DANS TA BASE DE DONNÉES NEON
     socket.on('admin_action_next', async (data) => {
         const { pin } = data;
         const game = activeGames[pin];
@@ -70,14 +68,12 @@ io.on('connection', (socket) => {
         game.buzzedPlayerId = null;
 
         try {
-            // Requête SQL pour tirer une question aléatoire du thème choisi
             const result = await pool.query('SELECT * FROM questions WHERE theme = $1 ORDER BY RANDOM() LIMIT 1', [game.currentTheme]);
             
             if (result.rows.length > 0) {
                 const q = result.rows[0];
                 game.status = 'reading';
 
-                // Formatage des données
                 const formattedQ = {
                     question_text: q.question_text,
                     choice_a: q.choice_a,

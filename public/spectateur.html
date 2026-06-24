@@ -44,7 +44,6 @@
         
         @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
 
-        /* NOUVEAU: Le tableau des scores en direct en bas */
         #scoreboard { position: fixed; bottom: 20px; left: 0; width: 100%; display: flex; justify-content: center; gap: 20px; flex-wrap: wrap; z-index: 50; }
         .score-badge { background: rgba(255,255,255,0.1); backdrop-filter: blur(5px); padding: 10px 25px; border-radius: 30px; border: 2px solid rgba(255,255,255,0.2); font-weight: 900; font-size: 1.8rem; box-shadow: 0 4px 15px rgba(0,0,0,0.5); text-transform: uppercase; }
         .score-val { color: #4ade80; margin-left: 10px; }
@@ -90,6 +89,17 @@
     <script>
         const socket = io();
 
+        // Contrôle du chronomètre
+        let timerAudio = new Audio('sounds/question_timer.mp3');
+        timerAudio.loop = true; 
+        let timerTimeout;
+
+        function stopTimer() {
+            clearTimeout(timerTimeout);
+            timerAudio.pause();
+            timerAudio.currentTime = 0;
+        }
+
         function join() {
             socket.emit('join_game', { pin: document.getElementById('pin').value, name: 'Spectateur', role: 'spectateur' });
             document.getElementById('setup').style.display = 'none';
@@ -97,7 +107,6 @@
             new Audio('sounds/start_game.mp3').play();
         }
 
-        // Mise à jour des scores en direct
         socket.on('update_players', (players) => {
             const board = document.getElementById('scoreboard');
             board.innerHTML = "";
@@ -107,7 +116,9 @@
         });
 
         socket.on('display_question', (data) => {
-            new Audio('sounds/pre_question.mp3').play(); // SON LECTURE QUESTION
+            stopTimer(); // Sécurité : couper l'ancien timer
+            new Audio('sounds/pre_question.mp3').play();
+            
             const actionBox = document.getElementById('actionBox');
             actionBox.className = '';
             document.getElementById('qText').innerText = data.question_text;
@@ -119,12 +130,26 @@
                 setTimeout(() => el.classList.add('visible'), (i + 1) * 800);
             });
 
-            // Son de suspense pendant les choix
-            setTimeout(() => { new Audio('sounds/question_timer.mp3').play(); }, 4000); 
+            // Lancement du timer une fois la question lue
+            timerTimeout = setTimeout(() => { 
+                timerAudio.play().catch(e => console.log("Audio play prevented:", e)); 
+            }, 4000); 
+        });
+
+        // LE SON DU BUZZ SE JOUE ICI QUAND LE JOUEUR FRAPPE LE BOUTON
+        socket.on('buzzer_hit', (data) => {
+            new Audio('sounds/buzz_sound.mp3').play();
+            const actionBox = document.getElementById('actionBox');
+            actionBox.innerHTML = `🚨 ${data.name} A BUZZÉ ! EN ATTENTE DU CHOIX...`;
+            actionBox.style.background = 'rgba(239, 68, 68, 0.2)';
+            actionBox.style.color = '#f87171';
+            actionBox.style.border = '2px solid #f87171';
+            actionBox.classList.add('show');
         });
 
         socket.on('spectator_answer_locked', (data) => {
-            new Audio('sounds/buzz_sound.mp3').play(); // SON DU BUZZ
+            stopTimer(); // LE CHRONO S'ARRÊTE LORSQUE LE JOUEUR CHOISIT
+            
             const actionBox = document.getElementById('actionBox');
             actionBox.innerHTML = `⚡ ${data.name} A CHOISI LA RÉPONSE ${data.answer} !<br><span style="color:#fde047; font-size:2rem; animation: pulse 1s infinite;">EST-CE QUE C'EST VRAI ? 🤔</span>`;
             actionBox.style.background = 'rgba(59, 130, 246, 0.2)';
@@ -136,7 +161,9 @@
         });
 
         socket.on('answer_correct', (data) => {
-            new Audio('sounds/applause.mp3').play(); // SON D'APPLAUDISSEMENT
+            stopTimer();
+            new Audio('sounds/applause.mp3').play();
+            
             const actionBox = document.getElementById('actionBox');
             actionBox.innerHTML = `✅ OUI ! BONNE RÉPONSE ! <br><span style="font-size:1.5rem;">Score de ${data.name} : ${data.score} PTS</span>`;
             actionBox.style.background = 'rgba(16, 185, 129, 0.2)';
@@ -145,15 +172,32 @@
         });
 
         socket.on('answer_wrong', (data) => {
+            stopTimer();
+
+            // SON DE BUZZ ACCÉLÉRÉ (Vitesse x2) POUR L'ERREUR
+            let wrongAudio = new Audio('sounds/buzz_sound.mp3');
+            wrongAudio.playbackRate = 2.0; 
+            wrongAudio.play();
+
             const actionBox = document.getElementById('actionBox');
-            actionBox.innerHTML = `❌ FAUX ! <br><span style="font-size:1.5rem;">BUZZER OUVERT POUR LES AUTRES ÉQUIPES !</span>`;
+            actionBox.innerHTML = `❌ FAUX ! <br><span style="font-size:1.5rem;">BUZZER RÉOUVERT POUR LES AUTRES ÉQUIPES !</span>`;
             actionBox.style.background = 'rgba(239, 68, 68, 0.2)';
             actionBox.style.color = '#f87171';
             actionBox.style.border = '2px solid #f87171';
             ['A','B','C','D'].forEach((l) => document.getElementById(`c${l}`).classList.remove('selected'));
+
+            // On relance le tictac pour les autres joueurs
+            setTimeout(() => { timerAudio.play().catch(e=>console.log(e)); }, 1500);
         });
 
         socket.on('answer_wrong_all', (data) => {
+            stopTimer();
+            
+            // SON DE BUZZ ACCÉLÉRÉ
+            let wrongAudio = new Audio('sounds/buzz_sound.mp3');
+            wrongAudio.playbackRate = 2.0; 
+            wrongAudio.play();
+
             const actionBox = document.getElementById('actionBox');
             actionBox.innerHTML = `❌ FAUX ! <br><span style="font-size:1.5rem;">PERSONNE NE MARQUE DE POINTS. QUESTION SUIVANTE !</span>`;
             actionBox.style.background = 'rgba(239, 68, 68, 0.2)';
@@ -163,6 +207,7 @@
         });
 
         socket.on('game_over', (data) => {
+            stopTimer();
             new Audio('sounds/applause.mp3').play(); 
             document.getElementById('winScreen').style.display = 'flex';
             document.getElementById('winName').innerText = data.name;
